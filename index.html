@@ -1,0 +1,4811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Run From Death - Tower Defense</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a1a; overflow: hidden; font-family: 'Courier New', monospace; display: flex; }
+canvas { display: block; }
+
+#menu-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#menu-overlay.hidden { display: none; }
+#menu-bg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center, #1a1a3a 0%, #0a0a1a 70%);
+}
+#menu-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 30px 20px;
+}
+#menu-content::-webkit-scrollbar { width: 6px; }
+#menu-content::-webkit-scrollbar-track { background: transparent; }
+#menu-content::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+#menu-content::-webkit-scrollbar-thumb:hover { background: #666; }
+#menu-title {
+    font-size: 52px;
+    color: #f1c40f;
+    text-shadow: 0 0 20px rgba(241,196,15,0.4), 3px 3px 0 #c0392b;
+    letter-spacing: 4px;
+    animation: titlePulse 2s ease-in-out infinite;
+}
+@keyframes titlePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+}
+#menu-sub {
+    font-size: 20px;
+    color: #aaa;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-top: -8px;
+}
+#menu-info {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #333;
+    padding: 16px 24px;
+    max-width: 400px;
+    color: #ccc;
+    font-size: 13px;
+    line-height: 1.6;
+}
+#menu-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+    color: #888;
+    font-size: 12px;
+}
+#menu-controls span::before {
+    content: '> ';
+    color: #f1c40f;
+}
+#play-btn {
+    background: #2ecc71;
+    border: none;
+    color: #000;
+    padding: 16px 64px;
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 4px;
+    transition: background 0.15s, transform 0.1s;
+}
+#play-btn:hover { background: #27ae60; transform: scale(1.05); }
+#play-btn:active { transform: scale(0.98); }
+#continue-btn {
+    background: #3498db;
+    border: none;
+    color: #fff;
+    padding: 16px 64px;
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 4px;
+    transition: background 0.15s, transform 0.1s;
+}
+#continue-btn:hover { background: #2980b9; transform: scale(1.05); }
+#continue-btn:active { transform: scale(0.98); }
+#menu-highscore {
+    color: #888;
+    font-size: 13px;
+}
+#menu-coins {
+    color: #f1c40f;
+    font-size: 18px;
+    font-weight: bold;
+}
+#menu-nav {
+    display: flex;
+    gap: 10px;
+}
+.menu-nav-btn {
+    background: #1a1a2e;
+    border: 2px solid #333;
+    color: #ccc;
+    padding: 10px 28px;
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.menu-nav-btn:hover { border-color: #888; background: #16213e; }
+.menu-nav-btn.active { border-color: #f1c40f; color: #f1c40f; background: #1c2a4a; }
+
+#menu-play-section, #menu-shop-section, #menu-owner-section { display: none; width: 100%; max-width: 560px; }
+#menu-play-section.active, #menu-shop-section.active, #menu-owner-section.active { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#owner-status { color: #e74c3c; font-size: 13px; min-height: 18px; }
+
+/* Difficulty buttons */
+.diff-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.diff-btn {
+    background: #1a1a2e;
+    border: 2px solid #333;
+    color: #ccc;
+    padding: 10px 18px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    min-width: 110px;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+}
+.diff-btn:hover { border-color: #888; }
+.diff-btn.selected { border-color: #f1c40f; color: #f1c40f; background: #1c2a4a; }
+.diff-btn .diff-name { display: block; font-weight: bold; font-size: 14px; margin-bottom: 2px; }
+.diff-btn .diff-reward { display: block; color: #f1c40f; font-size: 11px; }
+
+/* Shop grid */
+#shop-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+}
+.shop-item {
+    background: #1a1a2e;
+    border: 2px solid #333;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    position: relative;
+}
+.shop-item.owned { border-color: #2ecc71; }
+.shop-item .si-name { font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px; }
+.shop-item .si-desc { color: #888; font-size: 10px; display: block; margin-bottom: 6px; }
+.shop-buy-btn {
+    background: #f1c40f;
+    border: none;
+    color: #000;
+    padding: 4px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.shop-buy-btn:hover { background: #f39c12; }
+.shop-buy-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+.shop-owned-tag {
+    color: #2ecc71;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+#sidebar.hidden { display: none; }
+
+#sidebar {
+    width: 230px;
+    min-width: 230px;
+    background: #111122;
+    border-left: 2px solid #333;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+#sidebar-top {
+    padding: 10px 12px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+#sidebar-middle {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+#sidebar-middle::-webkit-scrollbar { width: 6px; }
+#sidebar-middle::-webkit-scrollbar-track { background: #0a0a15; }
+#sidebar-middle::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+#sidebar-middle::-webkit-scrollbar-thumb:hover { background: #555; }
+#sidebar-bottom {
+    padding: 8px 12px;
+    flex-shrink: 0;
+    border-top: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+#menu-btn {
+    background: #555;
+    border: none;
+    color: #ccc;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+    letter-spacing: 1px;
+}
+#menu-btn:hover { background: #777; color: #fff; }
+#save-btn {
+    background: #2980b9;
+    border: none;
+    color: #fff;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+}
+#save-btn:hover { background: #3498db; }
+#newgame-btn {
+    background: #c0392b;
+    border: none;
+    color: #fff;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+}
+#newgame-btn:hover { background: #e74c3c; }
+#speed-btn {
+    background: #8e44ad;
+    border: none;
+    color: #fff;
+    padding: 8px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    min-width: 44px;
+}
+#speed-btn:hover { background: #9b59b6; }
+#speed-btn.fast { background: #e67e22; }
+#speed-btn.faster { background: #e74c3c; }
+#sidebar h2 {
+    color: #f1c40f;
+    font-size: 15px;
+    text-align: center;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #333;
+    padding-bottom: 6px;
+}
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    color: #ccc;
+    font-size: 13px;
+}
+.stat-row .val { color: #2ecc71; font-weight: bold; }
+.stat-row .val.lives { color: #e74c3c; }
+
+.tower-btn {
+    background: #1a1a2e;
+    border: 2px solid #333;
+    color: #eee;
+    padding: 8px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+}
+.tower-btn:hover:not(:disabled):not(.selected) {
+    border-color: #888;
+    background: #16213e;
+}
+.tower-btn.selected {
+    border-color: #f1c40f;
+    background: #1c2a4a;
+}
+.tower-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.tower-btn.locked {
+    opacity: 0.25;
+    position: relative;
+}
+.tower-btn.locked::after {
+    content: 'LOCKED';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #e74c3c;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.tower-btn .tname { font-size: 13px; font-weight: bold; display: block; margin-bottom: 2px; }
+.tower-btn .tdesc { color: #999; display: block; margin-bottom: 2px; font-size: 10px; }
+.tower-btn .tcost { color: #2ecc71; font-size: 12px; }
+
+#wave-btn {
+    background: #2ecc71;
+    width: 100%;
+    border: none;
+    color: #000;
+    padding: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+#wave-btn:hover { background: #27ae60; }
+#wave-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+
+.sell-info {
+    color: #888;
+    font-size: 11px;
+    text-align: center;
+    border-top: 1px solid #333;
+    padding-top: 6px;
+}
+.selected-tower-info {
+    background: #1a1a2e;
+    border: 1px solid #444;
+    padding: 8px;
+    font-size: 12px;
+    color: #ccc;
+    display: none;
+}
+.selected-tower-info.active { display: block; }
+.selected-tower-info .st-name { color: #f1c40f; font-weight: bold; display: block; margin-bottom: 4px; }
+.selected-tower-info .st-stat { display: flex; justify-content: space-between; margin: 2px 0; }
+.selected-tower-info .st-stat .stv { color: #5dade2; }
+#sell-btn {
+    margin-top: 6px;
+    background: #c0392b;
+    border: none;
+    color: #fff;
+    padding: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+}
+#sell-btn:hover { background: #e74c3c; }
+#upgrade-btn {
+    margin-top: 4px;
+    background: #2980b9;
+    border: none;
+    color: #fff;
+    padding: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+}
+#upgrade-btn:hover { background: #3498db; }
+#upgrade-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div id="menu-overlay">
+    <div id="menu-bg"></div>
+    <div id="menu-content">
+        <h1 id="menu-title">RUN FROM DEATH</h1>
+        <p id="menu-sub">Tower Defense</p>
+        <p id="menu-coins"></p>
+
+        <div id="menu-nav">
+            <button class="menu-nav-btn active" onclick="showMenuTab('play')">Play</button>
+            <button class="menu-nav-btn" onclick="showMenuTab('shop')">Shop</button>
+            <button class="menu-nav-btn" onclick="showMenuTab('owner')">Owner</button>
+        </div>
+
+        <div id="menu-play-section" class="active">
+            <p style="color:#aaa;font-size:13px;">Select Difficulty:</p>
+            <div class="diff-row">
+                <button class="diff-btn selected" onclick="selectDifficulty('easy')">
+                    <span class="diff-name" style="color:#2ecc71">Easy</span>
+                    <span class="diff-reward">30 waves | +50 coins</span>
+                </button>
+                <button class="diff-btn" onclick="selectDifficulty('medium')">
+                    <span class="diff-name" style="color:#f39c12">Medium</span>
+                    <span class="diff-reward">50 waves | +70 coins</span>
+                </button>
+                <button class="diff-btn" onclick="selectDifficulty('hard')">
+                    <span class="diff-name" style="color:#e74c3c">Hard</span>
+                    <span class="diff-reward">80 waves | +100 coins</span>
+                </button>
+                <button class="diff-btn" onclick="selectDifficulty('impossible')">
+                    <span class="diff-name" style="color:#9b59b6">Impossible</span>
+                    <span class="diff-reward">100 waves | +1000 coins</span>
+                </button>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+                <button id="play-btn" onclick="startGame()">PLAY</button>
+                <button id="continue-btn" onclick="continueGame()" style="display:none">CONTINUE</button>
+            </div>
+            <p id="menu-highscore"></p>
+        </div>
+
+        <div id="menu-shop-section">
+            <p style="color:#aaa;font-size:13px;margin-bottom:4px;">Unlock new units with coins:</p>
+            <div id="shop-grid"></div>
+        </div>
+
+        <div id="menu-owner-section">
+            <p style="color:#f1c40f;font-size:16px;font-weight:bold;">Owner Mode</p>
+            <p style="color:#888;font-size:12px;">Enter code to unlock test mode.<br>All towers free, unlimited money.<br>No coins earned.</p>
+            <input type="password" id="owner-code" placeholder="Enter code..." style="
+                background:#1a1a2e;border:2px solid #333;color:#fff;padding:10px 16px;
+                font-family:'Courier New',monospace;font-size:16px;text-align:center;
+                width:200px;letter-spacing:4px;outline:none;
+            " />
+            <button onclick="tryOwnerCode()" style="
+                background:#8e44ad;border:none;color:#fff;padding:10px 32px;
+                font-family:'Courier New',monospace;font-size:15px;font-weight:bold;
+                cursor:pointer;letter-spacing:2px;
+            ">UNLOCK</button>
+            <p id="owner-status"></p>
+        </div>
+    </div>
+</div>
+<canvas id="game"></canvas>
+<div id="sidebar">
+    <div id="sidebar-top">
+        <h2>Run From Death</h2>
+        <div class="stat-row"><span>Money:</span><span class="val" id="ui-money">$100</span></div>
+        <div class="stat-row"><span>Lives:</span><span class="val lives" id="ui-lives">20</span></div>
+        <div class="stat-row"><span>Wave:</span><span class="val" id="ui-wave">0 / ?</span></div>
+        <div class="stat-row"><span>Score:</span><span class="val" id="ui-score">0</span></div>
+        <div class="stat-row" id="spawner-row"><span>Bases:</span><span class="val" id="ui-spawners">0 / 5</span></div>
+    </div>
+
+    <div id="sidebar-middle">
+        <h2>Units</h2>
+        <button class="tower-btn" id="btn-gunner" onclick="selectTower('gunner')">
+            <span class="tname" style="color:#3498db">Gunner</span>
+            <span class="tdesc">Soldier with rifle, fast shots</span>
+            <span class="tcost">$50</span>
+        </button>
+        <button class="tower-btn" id="btn-rocketeer" onclick="selectTower('rocketeer')">
+            <span class="tname" style="color:#e67e22">Rocketeer</span>
+            <span class="tdesc">Rocket launcher, splash damage</span>
+            <span class="tcost">$100</span>
+        </button>
+        <button class="tower-btn" id="btn-frost" onclick="selectTower('frost')">
+            <span class="tname" style="color:#1abc9c">Frost Mage</span>
+            <span class="tdesc">Magic ice bolts, slows enemies</span>
+            <span class="tcost">$75</span>
+        </button>
+        <button class="tower-btn" id="btn-sniper" onclick="selectTower('sniper')">
+            <span class="tname" style="color:#9b59b6">Sniper</span>
+            <span class="tdesc">Long range, high damage</span>
+            <span class="tcost">$125</span>
+        </button>
+        <button class="tower-btn" id="btn-minigunner" onclick="selectTower('minigunner')">
+            <span class="tname" style="color:#e74c3c">Minigunner</span>
+            <span class="tdesc">Heavy guy, insane fire rate</span>
+            <span class="tcost">$200</span>
+        </button>
+        <button class="tower-btn" id="btn-shotgunner" onclick="selectTower('shotgunner')">
+            <span class="tname" style="color:#d35400">Shotgunner</span>
+            <span class="tdesc">Close range, fires spread shots</span>
+            <span class="tcost">$80</span>
+        </button>
+        <button class="tower-btn" id="btn-plane" onclick="selectTower('plane')">
+            <span class="tname" style="color:#27ae60">Plane</span>
+            <span class="tdesc">Propeller bomber, area damage</span>
+            <span class="tcost">$160</span>
+        </button>
+        <button class="tower-btn" id="btn-tank" onclick="selectTower('tank')">
+            <span class="tname" style="color:#6b8e23">Tank</span>
+            <span class="tdesc">Armored vehicle, heavy shells</span>
+            <span class="tcost">$175</span>
+        </button>
+        <button class="tower-btn" id="btn-heli" onclick="selectTower('heli')">
+            <span class="tname" style="color:#e67e22">Helicopter</span>
+            <span class="tdesc">Attack heli, fast missiles</span>
+            <span class="tcost">$200</span>
+        </button>
+        <button class="tower-btn" id="btn-jet" onclick="selectTower('jet')">
+            <span class="tname" style="color:#00bfff">Jet</span>
+            <span class="tdesc">Fighter jet, bombs the path</span>
+            <span class="tcost">$250</span>
+        </button>
+        <button class="tower-btn" id="btn-milbase" onclick="selectTower('milbase')">
+            <span class="tname" style="color:#7f8c8d">Military Base</span>
+            <span class="tdesc">Spawns tanks &amp; cars on path</span>
+            <span class="tcost">$200</span>
+        </button>
+        <button class="tower-btn" id="btn-elfhut" onclick="selectTower('elfhut')">
+            <span class="tname" style="color:#2ecc71">Elf Hut</span>
+            <span class="tdesc">Spawns sword &amp; archer elves</span>
+            <span class="tcost">$120</span>
+        </button>
+        <button class="tower-btn" id="btn-dj" onclick="selectTower('dj')">
+            <span class="tname" style="color:#e91e63">DJ</span>
+            <span class="tdesc">Boosts damage &amp; attack speed</span>
+            <span class="tcost">$175</span>
+        </button>
+        <button class="tower-btn" id="btn-commander" onclick="selectTower('commander')">
+            <span class="tname" style="color:#f1c40f">Commander</span>
+            <span class="tdesc">Boosts nearby units' damage</span>
+            <span class="tcost">$150</span>
+        </button>
+
+        <div class="selected-tower-info" id="tower-info">
+            <span class="st-name" id="ti-name"></span>
+            <div class="st-stat"><span>Damage:</span><span class="stv" id="ti-dmg"></span></div>
+            <div class="st-stat"><span>Range:</span><span class="stv" id="ti-range"></span></div>
+            <div class="st-stat"><span>Speed:</span><span class="stv" id="ti-speed"></span></div>
+            <div class="st-stat"><span>Level:</span><span class="stv" id="ti-level"></span></div>
+            <button id="upgrade-btn" onclick="upgradeTower()">Upgrade ($--)</button>
+            <button id="sell-btn" onclick="sellTower()">Sell ($--)</button>
+        </div>
+
+        <div class="sell-info">Click unit to select<br>Right-click to deselect</div>
+    </div>
+
+    <div id="sidebar-bottom">
+        <div style="display:flex;gap:6px;">
+            <button id="wave-btn" onclick="startNextWave()" style="flex:1">Start Wave 1</button>
+            <button id="speed-btn" onclick="toggleSpeed()">1x</button>
+        </div>
+        <div style="display:flex;gap:6px;">
+            <button id="save-btn" onclick="saveAndNotify()" style="flex:1">Save Game</button>
+            <button id="newgame-btn" onclick="confirmNewGame()" style="flex:1">New Game</button>
+        </div>
+        <button id="menu-btn" onclick="confirmMenu()">Menu</button>
+    </div>
+</div>
+
+<script>
+// ============================================================
+//  CONFIG
+// ============================================================
+const TILE = 40;
+const COLS = 25;
+const ROWS = 16;
+
+const PATH_COORDS = [
+    [-1, 2], [0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],
+    [8,3],[8,4],[8,5],[8,6],[8,7],
+    [7,7],[6,7],[5,7],[4,7],[3,7],[2,7],
+    [2,8],[2,9],[2,10],[2,11],[2,12],
+    [3,12],[4,12],[5,12],[6,12],[7,12],[8,12],[9,12],[10,12],[11,12],[12,12],[13,12],
+    [13,11],[13,10],[13,9],[13,8],[13,7],
+    [14,7],[15,7],[16,7],[17,7],[18,7],
+    [18,6],[18,5],[18,4],[18,3],[18,2],
+    [19,2],[20,2],[21,2],[22,2],
+    [22,3],[22,4],[22,5],[22,6],[22,7],[22,8],[22,9],[22,10],[22,11],[22,12],[22,13],
+    [21,13],[20,13],[19,13],[18,13],[17,13],[16,13],
+    [16,14],[16,15],[16,16]
+];
+
+const PATH = PATH_COORDS.map(([c, r]) => ({ x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 }));
+const pathSet = new Set();
+PATH_COORDS.forEach(([c, r]) => pathSet.add(`${c},${r}`));
+
+const TOWER_DEFS = {
+    gunner: {
+        name: 'Gunner', cost: 50, color: '#3498db', skinColor: '#f0c899',
+        range: 120, damage: 15, fireRate: 0.5,
+        splash: 0, slow: 0, upgradeCost: 40, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1.1, rateUp: 0.85,
+        hat: '#2c3e50', outfit: '#2980b9',
+    },
+    rocketeer: {
+        name: 'Rocketeer', cost: 100, color: '#e67e22', skinColor: '#d4a574',
+        range: 110, damage: 45, fireRate: 1.8,
+        splash: 55, slow: 0, upgradeCost: 75, upgradeScale: 1.5,
+        dmgUp: 1.35, rangeUp: 1.1, rateUp: 0.9,
+        hat: '#c0392b', outfit: '#e67e22',
+    },
+    frost: {
+        name: 'Frost Mage', cost: 75, color: '#1abc9c', skinColor: '#b8d4e3',
+        range: 115, damage: 5, fireRate: 0.7,
+        splash: 0, slow: 0.5, slowDur: 2, upgradeCost: 55, upgradeScale: 1.5,
+        dmgUp: 1.2, rangeUp: 1.15, rateUp: 0.9,
+        hat: '#16a085', outfit: '#1abc9c',
+    },
+    sniper: {
+        name: 'Sniper', cost: 125, color: '#9b59b6', skinColor: '#f0c899',
+        range: 220, damage: 90, fireRate: 2.5,
+        splash: 0, slow: 0, upgradeCost: 100, upgradeScale: 1.5,
+        dmgUp: 1.4, rangeUp: 1.08, rateUp: 0.92,
+        hat: '#4a235a', outfit: '#7d3c98',
+    },
+    minigunner: {
+        name: 'Minigunner', cost: 200, color: '#e74c3c', skinColor: '#d4a574',
+        range: 100, damage: 8, fireRate: 0.12,
+        splash: 0, slow: 0, upgradeCost: 120, upgradeScale: 1.5,
+        dmgUp: 1.25, rangeUp: 1.08, rateUp: 0.88,
+        hat: '#922b21', outfit: '#c0392b',
+    },
+    shotgunner: {
+        name: 'Shotgunner', cost: 80, color: '#d35400', skinColor: '#d4a574',
+        range: 80, damage: 12, fireRate: 0.9,
+        splash: 0, slow: 0, upgradeCost: 50, upgradeScale: 1.5,
+        dmgUp: 1.25, rangeUp: 1.08, rateUp: 0.88,
+        hat: '#8B4513', outfit: '#a04000', pellets: 5,
+    },
+    plane: {
+        name: 'Plane', cost: 160, color: '#27ae60', skinColor: '#f0c899',
+        range: 140, damage: 35, fireRate: 2.0,
+        splash: 40, slow: 0, upgradeCost: 100, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1.1, rateUp: 0.9,
+        hat: '#1e8449', outfit: '#2d6a2d',
+    },
+    tank: {
+        name: 'Tank', cost: 175, color: '#6b8e23', skinColor: '#f0c899',
+        range: 130, damage: 60, fireRate: 2.0,
+        splash: 40, slow: 0, upgradeCost: 100, upgradeScale: 1.5,
+        dmgUp: 1.35, rangeUp: 1.08, rateUp: 0.9,
+        hat: '#4a6e23', outfit: '#556b2f',
+    },
+    heli: {
+        name: 'Helicopter', cost: 200, color: '#e67e22', skinColor: '#f0c899',
+        range: 150, damage: 25, fireRate: 0.4,
+        splash: 0, slow: 0, upgradeCost: 120, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1.1, rateUp: 0.85,
+        hat: '#c0392b', outfit: '#2c3e50',
+    },
+    jet: {
+        name: 'Jet', cost: 250, color: '#00bfff', skinColor: '#f0c899',
+        range: 180, damage: 70, fireRate: 2.5,
+        splash: 55, slow: 0, upgradeCost: 150, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1.1, rateUp: 0.88,
+        hat: '#00bfff', outfit: '#1a5276',
+    },
+    milbase: {
+        name: 'Military Base', cost: 200, color: '#7f8c8d', skinColor: '#f0c899',
+        range: 0, damage: 15, fireRate: 4.0,
+        splash: 0, slow: 0, upgradeCost: 120, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1, rateUp: 0.85,
+        hat: '#555', outfit: '#3d5c3a',
+    },
+    elfhut: {
+        name: 'Elf Hut', cost: 120, color: '#2ecc71', skinColor: '#c8e6c9',
+        range: 0, damage: 8, fireRate: 3.0,
+        splash: 0, slow: 0, upgradeCost: 80, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1, rateUp: 0.85,
+        hat: '#1b5e20', outfit: '#388e3c',
+        elfSpeed: 100, elfCount: 2, elfRange: 70, elfFireRate: 0.6,
+    },
+    dj: {
+        name: 'DJ', cost: 175, color: '#e91e63', skinColor: '#f0c899',
+        range: 0, damage: 0, fireRate: 999,
+        splash: 0, slow: 0, upgradeCost: 110, upgradeScale: 1.5,
+        dmgUp: 1, rangeUp: 1, rateUp: 1,
+        hat: '#880e4f', outfit: '#ad1457',
+        boostRange: 160, dmgBoost: 1.35, spdBoost: 0.7,
+    },
+    commander: {
+        name: 'Commander', cost: 150, color: '#f1c40f', skinColor: '#f0c899',
+        range: 130, damage: 10, fireRate: 1.2,
+        splash: 0, slow: 0, upgradeCost: 100, upgradeScale: 1.6,
+        dmgUp: 1.2, rangeUp: 1.12, rateUp: 0.9,
+        hat: '#f1c40f', outfit: '#2c3e50',
+        boostRange: 100, boostMult: 1.25,
+    },
+};
+
+// Skin tiers: colors change at level 1-2, 3-4, 5+
+// Each tier: [outfit, hat, accent, glowColor]
+const SKIN_TIERS = {
+    gunner: [
+        { outfit: '#2980b9', hat: '#3d5c3a', accent: '#3d5c3a', glow: null, title: 'Recruit' },
+        { outfit: '#1a6b30', hat: '#2d4a2a', accent: '#f1c40f', glow: null, title: 'Veteran' },
+        { outfit: '#1a1a1a', hat: '#111', accent: '#e74c3c', glow: '#e74c3c', title: 'Elite Ops' },
+    ],
+    rocketeer: [
+        { outfit: '#e67e22', hat: '#8b1a1a', accent: '#8B6914', glow: null, title: 'Rocketeer' },
+        { outfit: '#c0392b', hat: '#5c1010', accent: '#f39c12', glow: null, title: 'Demolisher' },
+        { outfit: '#1a1a2e', hat: '#0a0a1a', accent: '#ff4444', glow: '#ff6600', title: 'Hellfire' },
+    ],
+    frost: [
+        { outfit: '#0e6655', hat: '#0e6655', accent: '#1abc9c', glow: '#00ffdd', title: 'Frost Mage' },
+        { outfit: '#1a5276', hat: '#154360', accent: '#5dade2', glow: '#44ccff', title: 'Ice Wizard' },
+        { outfit: '#2c0a4a', hat: '#1a0630', accent: '#bb77ff', glow: '#aa44ff', title: 'Archmage' },
+    ],
+    sniper: [
+        { outfit: '#7d3c98', hat: '#4a235a', accent: '#555', glow: null, title: 'Sniper' },
+        { outfit: '#4a6e47', hat: '#2d4a2a', accent: '#aaa', glow: null, title: 'Marksman' },
+        { outfit: '#1a1a1a', hat: '#111', accent: '#ff0000', glow: '#ff0000', title: 'Assassin' },
+    ],
+    minigunner: [
+        { outfit: '#c0392b', hat: '#922b21', accent: '#8B7355', glow: null, title: 'Minigunner' },
+        { outfit: '#7d6608', hat: '#5a4a05', accent: '#f1c40f', glow: null, title: 'Juggernaut' },
+        { outfit: '#2c3e50', hat: '#1a252f', accent: '#00ffcc', glow: '#00ffcc', title: 'Titan' },
+    ],
+    shotgunner: [
+        { outfit: '#a04000', hat: '#8B4513', accent: '#8B7355', glow: null, title: 'Shotgunner' },
+        { outfit: '#7a3000', hat: '#654321', accent: '#f1c40f', glow: null, title: 'Boomstick' },
+        { outfit: '#1a1a1a', hat: '#111', accent: '#ff6600', glow: '#ff6600', title: 'Devastator' },
+    ],
+    plane: [
+        { outfit: '#2d6a2d', hat: '#1e8449', accent: '#aaa', glow: null, title: 'Prop Plane' },
+        { outfit: '#1a4a1a', hat: '#0e3a0e', accent: '#f1c40f', glow: null, title: 'Bomber' },
+        { outfit: '#1a1a1a', hat: '#222', accent: '#ff4444', glow: '#ff4444', title: 'B-52 Fortress' },
+    ],
+    tank: [
+        { outfit: '#556b2f', hat: '#4a6e23', accent: '#8B7355', glow: null, title: 'Light Tank' },
+        { outfit: '#3a4a1f', hat: '#2d3a15', accent: '#aaa', glow: null, title: 'Battle Tank' },
+        { outfit: '#1a1a1a', hat: '#111', accent: '#ff4444', glow: '#ff4444', title: 'War Machine' },
+    ],
+    heli: [
+        { outfit: '#2c3e50', hat: '#555', accent: '#aaa', glow: null, title: 'Scout Heli' },
+        { outfit: '#1a3c1a', hat: '#333', accent: '#f1c40f', glow: null, title: 'Apache' },
+        { outfit: '#1a1a1a', hat: '#222', accent: '#00ffcc', glow: '#00ffcc', title: 'Spectre' },
+    ],
+    jet: [
+        { outfit: '#1a5276', hat: '#00bfff', accent: '#aaa', glow: null, title: 'Fighter Jet' },
+        { outfit: '#2c3e50', hat: '#3498db', accent: '#f1c40f', glow: null, title: 'Strike Eagle' },
+        { outfit: '#1a1a1a', hat: '#e74c3c', accent: '#ff4444', glow: '#ff4444', title: 'Stealth Bomber' },
+    ],
+    milbase: [
+        { outfit: '#3d5c3a', hat: '#555', accent: '#8B7355', glow: null, title: 'Outpost' },
+        { outfit: '#2c3e50', hat: '#444', accent: '#f1c40f', glow: null, title: 'Military Base' },
+        { outfit: '#1a1a1a', hat: '#333', accent: '#ff4444', glow: '#ff4444', title: 'War Factory' },
+    ],
+    elfhut: [
+        { outfit: '#388e3c', hat: '#1b5e20', accent: '#a5d6a7', glow: null, title: 'Elf Hut' },
+        { outfit: '#2e7d32', hat: '#1b5e20', accent: '#f1c40f', glow: null, title: 'Elf Village' },
+        { outfit: '#1b5e20', hat: '#0a3a0a', accent: '#00ffcc', glow: '#00ff88', title: 'Elf Fortress' },
+    ],
+    dj: [
+        { outfit: '#ad1457', hat: '#880e4f', accent: '#e91e63', glow: null, title: 'DJ' },
+        { outfit: '#7b1fa2', hat: '#4a148c', accent: '#e040fb', glow: null, title: 'Hype DJ' },
+        { outfit: '#1a1a2e', hat: '#0a0a1a', accent: '#00ffff', glow: '#00ffff', title: 'Rave Lord' },
+    ],
+    commander: [
+        { outfit: '#2c3e50', hat: '#1c2833', accent: '#f1c40f', glow: null, title: 'Commander' },
+        { outfit: '#1a3c5e', hat: '#0e2a42', accent: '#ffd700', glow: null, title: 'General' },
+        { outfit: '#3a0a0a', hat: '#1a0505', accent: '#ff4444', glow: '#ff4444', title: 'Supreme Marshal' },
+    ],
+};
+
+function getSkinTier(type, level) {
+    const tiers = SKIN_TIERS[type];
+    if (!tiers) return tiers ? tiers[0] : null;
+    if (level >= 5) return tiers[2];
+    if (level >= 3) return tiers[1];
+    return tiers[0];
+}
+
+// ============================================================
+//  SHOP & DIFFICULTY SYSTEM
+// ============================================================
+const SHOP_ITEMS = {
+    gunner:     { price: 0,   desc: 'Starter unit' },
+    frost:      { price: 40,  desc: 'Slows enemies' },
+    rocketeer:  { price: 60,  desc: 'Splash damage' },
+    sniper:     { price: 80,  desc: 'Long range' },
+    minigunner: { price: 100, desc: 'Insane fire rate' },
+    shotgunner: { price: 50, desc: 'Spread shots' },
+    plane:      { price: 130, desc: 'Area bomber' },
+    tank:       { price: 120, desc: 'Heavy shells' },
+    milbase:    { price: 150, desc: 'Spawns tanks & cars' },
+    elfhut:     { price: 90,  desc: 'Spawns elf fighters' },
+    dj:         { price: 120, desc: 'Damage + speed boost' },
+    commander:  { price: 100, desc: 'Boosts allies' },
+    heli:       { price: 150, desc: 'Attack helicopter' },
+    jet:        { price: 250, desc: 'Bombs the path' },
+};
+
+const DIFFICULTIES = {
+    easy:       { hpMult: 0.8, speedMult: 0.85, rewardMult: 0.8, startMoney: 150, lives: 30, coins: 50,   waves: 30 },
+    medium:     { hpMult: 1.0, speedMult: 1.0,  rewardMult: 1.0, startMoney: 100, lives: 20, coins: 70,   waves: 50 },
+    hard:       { hpMult: 1.4, speedMult: 1.2,  rewardMult: 1.2, startMoney: 80,  lives: 10, coins: 100,  waves: 80 },
+    impossible: { hpMult: 2.0, speedMult: 1.5,  rewardMult: 1.5, startMoney: 60,  lives: 5,  coins: 1000, waves: 100 },
+};
+
+let coins = parseInt(localStorage.getItem('rfd_td_coins') || '0');
+let unlockedTowers = JSON.parse(localStorage.getItem('rfd_td_unlocked') || '["gunner"]');
+let selectedDifficulty = 'easy';
+let difficultyConfig = DIFFICULTIES.easy;
+
+function saveCoins() {
+    localStorage.setItem('rfd_td_coins', coins.toString());
+}
+function saveUnlocked() {
+    localStorage.setItem('rfd_td_unlocked', JSON.stringify(unlockedTowers));
+}
+
+function selectDifficulty(diff) {
+    selectedDifficulty = diff;
+    difficultyConfig = DIFFICULTIES[diff];
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+}
+window.selectDifficulty = selectDifficulty;
+
+function showMenuTab(tab) {
+    document.querySelectorAll('.menu-nav-btn').forEach((b, i) => {
+        b.classList.toggle('active', (tab === 'play' && i === 0) || (tab === 'shop' && i === 1) || (tab === 'owner' && i === 2));
+    });
+    document.getElementById('menu-play-section').classList.toggle('active', tab === 'play');
+    document.getElementById('menu-shop-section').classList.toggle('active', tab === 'shop');
+    document.getElementById('menu-owner-section').classList.toggle('active', tab === 'owner');
+    if (tab === 'shop') buildShopGrid();
+}
+window.showMenuTab = showMenuTab;
+
+function buildShopGrid() {
+    const grid = document.getElementById('shop-grid');
+    grid.innerHTML = '';
+    for (const [key, item] of Object.entries(SHOP_ITEMS)) {
+        const def = TOWER_DEFS[key];
+        const owned = unlockedTowers.includes(key);
+        const canBuy = coins >= item.price && !owned;
+        const div = document.createElement('div');
+        div.className = 'shop-item' + (owned ? ' owned' : '');
+        div.innerHTML = `
+            <span class="si-name" style="color:${def.color}">${def.name}</span>
+            <span class="si-desc">${item.desc}</span>
+            ${owned
+                ? '<span class="shop-owned-tag">OWNED</span>'
+                : item.price === 0
+                    ? '<span class="shop-owned-tag">FREE</span>'
+                    : `<button class="shop-buy-btn" ${canBuy ? '' : 'disabled'} onclick="buyTowerShop('${key}')">${item.price} coins</button>`
+            }
+        `;
+        grid.appendChild(div);
+    }
+}
+
+function buyTowerShop(key) {
+    const item = SHOP_ITEMS[key];
+    if (coins < item.price || unlockedTowers.includes(key)) return;
+    coins -= item.price;
+    unlockedTowers.push(key);
+    saveCoins();
+    saveUnlocked();
+    updateMenuCoins();
+    buildShopGrid();
+}
+window.buyTowerShop = buyTowerShop;
+
+function updateMenuCoins() {
+    document.getElementById('menu-coins').textContent = `Coins: ${coins}`;
+}
+
+const ENEMY_TYPES = {
+    basic:    { hp: 60,  speed: 60,  color: '#e74c3c', reward: 10, size: 8 },
+    fast:     { hp: 30,  speed: 120, color: '#f39c12', reward: 12, size: 6 },
+    tank:     { hp: 200, speed: 40,  color: '#8e44ad', reward: 25, size: 11 },
+    boss:     { hp: 800, speed: 35,  color: '#c0392b', reward: 100, size: 15 },
+    megaboss: { hp: 1,   speed: 15,  color: '#ff0000', reward: 500, size: 20 },
+};
+
+// Megaboss HP per difficulty (overrides the base hp)
+const MEGABOSS_HP = { easy: 50000, medium: 75000, hard: 100000, impossible: 500000 };
+
+// Wave generator — creates wave composition for any wave number
+function generateWave(w) {
+    const wave = [];
+    // Basic enemies: always present, scales up
+    const basicCount = Math.floor(6 + w * 2.5);
+    wave.push(['basic', basicCount]);
+    // Fast enemies: start wave 2
+    if (w >= 2) {
+        const fastCount = Math.floor(3 + w * 1.8);
+        wave.push(['fast', fastCount]);
+    }
+    // Tank enemies: start wave 4
+    if (w >= 4) {
+        const tankCount = Math.floor((w - 3) * 1.2);
+        wave.push(['tank', tankCount]);
+    }
+    // Boss enemies: every 5 waves starting at wave 5
+    if (w >= 5 && w % 5 === 0) {
+        const bossCount = Math.floor(w / 5);
+        wave.push(['boss', bossCount]);
+    }
+    // Extra boss on final waves (every 10)
+    if (w >= 10 && w % 10 === 0) {
+        wave.push(['boss', Math.floor(w / 10)]);
+    }
+    // FINAL WAVE: boss rush + THE MEGABOSS
+    if (w === totalWaves) {
+        const finalBosses = Math.max(5, Math.floor(w / 8));
+        wave.push(['boss', finalBosses]);
+        wave.push(['megaboss', 1]);
+    }
+    return wave;
+}
+
+// Max waves per difficulty
+const WAVE_COUNTS = { easy: 30, medium: 50, hard: 80, impossible: 100 };
+let totalWaves = 30;
+
+// ============================================================
+//  CANVAS
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+    canvas.width = COLS * TILE;
+    canvas.height = ROWS * TILE;
+}
+resize();
+
+// ============================================================
+//  GAME STATE
+// ============================================================
+let money = 100;
+let lives = 20;
+let score = 0;
+let wave = 0;
+let waveActive = false;
+let gameOver = false;
+let gameState = 'menu'; // 'menu' | 'playing' | 'gameover'
+let gameSpeed = 1; // 1x, 2x, 3x
+let ownerMode = false;
+let highScore = parseInt(localStorage.getItem('rfd_td_highscore') || '0');
+
+let towers = [];
+let enemies = [];
+let projectiles = [];
+let particles = [];
+let elves = []; // spawned by elf huts
+
+let selectedTowerType = null;
+let selectedTower = null;
+let hoverCol = -1, hoverRow = -1;
+
+// ============================================================
+//  INPUT
+// ============================================================
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    hoverCol = Math.floor((e.clientX - rect.left) / TILE);
+    hoverRow = Math.floor((e.clientY - rect.top) / TILE);
+});
+
+canvas.addEventListener('mouseleave', () => { hoverCol = -1; hoverRow = -1; });
+
+canvas.addEventListener('click', e => {
+    if (gameOver) { goToMenu(); return; }
+    const rect = canvas.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / TILE);
+    const row = Math.floor((e.clientY - rect.top) / TILE);
+
+    // Check if clicking on an existing tower first
+    const clickedTower = towers.find(t => t.col === col && t.row === row);
+    if (clickedTower) {
+        // Always select a placed tower when clicking on it
+        selectedTowerType = null;
+        document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+        selectedTower = clickedTower;
+        updateTowerInfo();
+    } else if (selectedTowerType) {
+        placeTower(col, row);
+    } else {
+        selectedTower = null;
+        document.getElementById('tower-info').classList.remove('active');
+    }
+});
+
+canvas.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    selectedTowerType = null;
+    selectedTower = null;
+    document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('tower-info').classList.remove('active');
+});
+
+// ============================================================
+//  TOWER PLACEMENT
+// ============================================================
+function selectTower(type) {
+    if (gameOver) return;
+    if (!ownerMode && !unlockedTowers.includes(type)) return;
+    selectedTower = null;
+    document.getElementById('tower-info').classList.remove('active');
+    if (selectedTowerType === type) {
+        selectedTowerType = null;
+        document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+        return;
+    }
+    selectedTowerType = type;
+    document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('btn-' + type).classList.add('selected');
+}
+window.selectTower = selectTower;
+
+function canPlace(col, row) {
+    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
+    if (pathSet.has(`${col},${row}`)) return false;
+    if (towers.some(t => t.col === col && t.row === row)) return false;
+    return true;
+}
+
+const SPAWNER_LIMIT = 5; // max elf huts + mil bases in normal mode
+
+function placeTower(col, row) {
+    if (!selectedTowerType) return;
+    const def = TOWER_DEFS[selectedTowerType];
+    if (money < def.cost) return;
+    if (!canPlace(col, row)) return;
+    // Limit spawner towers in normal mode
+    if (!ownerMode && (selectedTowerType === 'elfhut' || selectedTowerType === 'milbase')) {
+        const count = towers.filter(t => t.type === 'elfhut' || t.type === 'milbase').length;
+        if (count >= SPAWNER_LIMIT) return;
+    }
+
+    money -= def.cost;
+    towers.push({
+        type: selectedTowerType,
+        col, row,
+        x: col * TILE + TILE / 2,
+        y: row * TILE + TILE / 2,
+        damage: def.damage,
+        range: def.range,
+        fireRate: def.fireRate,
+        splash: def.splash,
+        slow: def.slow || 0,
+        slowDur: def.slowDur || 0,
+        cooldown: 0,
+        level: 1,
+        angle: 0,
+        target: null,
+        shootAnim: 0, // recoil animation timer
+    });
+    updateUI();
+}
+
+// ============================================================
+//  TOWER INFO / SELL / UPGRADE
+// ============================================================
+function updateTowerInfo() {
+    if (!selectedTower) return;
+    const t = selectedTower;
+    const def = TOWER_DEFS[t.type];
+    const infoEl = document.getElementById('tower-info');
+    infoEl.classList.add('active');
+    const skin = getSkinTier(t.type, t.level);
+    document.getElementById('ti-name').textContent = skin ? skin.title : def.name;
+    document.getElementById('ti-name').style.color = def.color;
+    const dmgBoost = getBoostMultiplier(t);
+    const spdBoost = getSpeedBoost(t);
+    const boostedDmg = Math.round(t.damage * dmgBoost);
+    const boostedSpd = (t.fireRate * spdBoost).toFixed(2);
+    const hasBuff = dmgBoost > 1.01 || spdBoost < 0.99;
+    document.getElementById('ti-dmg').textContent = hasBuff ? `${Math.round(t.damage)} → ${boostedDmg}` : Math.round(t.damage);
+    document.getElementById('ti-dmg').style.color = dmgBoost > 1.01 ? '#e91e63' : '#5dade2';
+    document.getElementById('ti-range').textContent = Math.round(t.range);
+    document.getElementById('ti-speed').textContent = hasBuff ? `${t.fireRate.toFixed(2)}s → ${boostedSpd}s` : t.fireRate.toFixed(2) + 's';
+    document.getElementById('ti-speed').style.color = spdBoost < 0.99 ? '#e91e63' : '#5dade2';
+    document.getElementById('ti-level').textContent = t.level + ' / 6';
+
+    const maxLevel = 6;
+    if (t.level >= maxLevel) {
+        document.getElementById('upgrade-btn').textContent = 'MAX LEVEL';
+        document.getElementById('upgrade-btn').disabled = true;
+    } else {
+        const upgCost = Math.floor(def.upgradeCost * Math.pow(def.upgradeScale, t.level - 1));
+        document.getElementById('upgrade-btn').textContent = `Upgrade ($${upgCost})`;
+        document.getElementById('upgrade-btn').disabled = money < upgCost;
+    }
+
+    const sellVal = Math.floor(def.cost * 0.6 + (t.level - 1) * def.upgradeCost * 0.3);
+    document.getElementById('sell-btn').textContent = `Sell ($${sellVal})`;
+}
+
+function sellTower() {
+    if (!selectedTower) return;
+    const t = selectedTower;
+    const def = TOWER_DEFS[t.type];
+    const sellVal = Math.floor(def.cost * 0.6 + (t.level - 1) * def.upgradeCost * 0.3);
+    money += sellVal;
+    towers = towers.filter(tw => tw !== t);
+    selectedTower = null;
+    document.getElementById('tower-info').classList.remove('active');
+    updateUI();
+}
+window.sellTower = sellTower;
+
+function upgradeTower() {
+    if (!selectedTower) return;
+    const t = selectedTower;
+    if (t.level >= 6) return;
+    const def = TOWER_DEFS[t.type];
+    const cost = Math.floor(def.upgradeCost * Math.pow(def.upgradeScale, t.level - 1));
+    if (money < cost) return;
+    money -= cost;
+    t.level++;
+    t.damage *= def.dmgUp;
+    t.range *= def.rangeUp;
+    t.fireRate *= def.rateUp;
+    updateTowerInfo();
+    updateUI();
+}
+window.upgradeTower = upgradeTower;
+
+// ============================================================
+//  WAVES
+// ============================================================
+let spawnQueue = [];
+let spawnTimer = 0;
+
+function startNextWave() {
+    if (waveActive || gameOver) return;
+    if (wave >= totalWaves) return;
+    wave++;
+    waveActive = true;
+    spawnQueue = [];
+    const waveDef = generateWave(wave);
+    const hpScale = 1 + (wave - 1) * 0.1;
+    for (const [type, count] of waveDef) {
+        for (let i = 0; i < count; i++) spawnQueue.push({ type, hpScale });
+    }
+    for (let i = spawnQueue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [spawnQueue[i], spawnQueue[j]] = [spawnQueue[j], spawnQueue[i]];
+    }
+    spawnTimer = 0;
+    updateUI();
+    document.getElementById('wave-btn').disabled = true;
+}
+window.startNextWave = startNextWave;
+
+// ============================================================
+//  COMMANDER BOOST
+// ============================================================
+function getBoostMultiplier(tower) {
+    let mult = 1;
+    for (const t of towers) {
+        if (t === tower) continue;
+        if (t.type === 'commander') {
+            const def = TOWER_DEFS.commander;
+            const boostRange = (def.boostRange || 100) * Math.pow(1.1, t.level - 1);
+            const dx = tower.x - t.x, dy = tower.y - t.y;
+            if (Math.sqrt(dx * dx + dy * dy) <= boostRange) {
+                mult *= (def.boostMult || 1.25) + (t.level - 1) * 0.05;
+            }
+        }
+        if (t.type === 'dj') {
+            const def = TOWER_DEFS.dj;
+            const boostRange = (def.boostRange || 160) * Math.pow(1.1, t.level - 1);
+            const dx = tower.x - t.x, dy = tower.y - t.y;
+            if (Math.sqrt(dx * dx + dy * dy) <= boostRange) {
+                mult *= (def.dmgBoost || 1.35) + (t.level - 1) * 0.06;
+            }
+        }
+    }
+    return mult;
+}
+
+// DJ speed boost — returns fire rate multiplier (lower = faster)
+function getSpeedBoost(tower) {
+    let mult = 1;
+    for (const t of towers) {
+        if (t === tower || t.type !== 'dj') continue;
+        const def = TOWER_DEFS.dj;
+        const boostRange = (def.boostRange || 160) * Math.pow(1.1, t.level - 1);
+        const dx = tower.x - t.x, dy = tower.y - t.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= boostRange) {
+            mult *= (def.spdBoost || 0.7) - (t.level - 1) * 0.03;
+        }
+    }
+    return Math.max(0.3, mult); // cap at 70% faster
+}
+
+// ============================================================
+//  ENEMY UPDATE
+// ============================================================
+function updateEnemies(dt) {
+    if (spawnQueue.length > 0) {
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) {
+            const info = spawnQueue.shift();
+            const def = ENEMY_TYPES[info.type];
+            // Megaboss has fixed HP per difficulty, ignores scaling
+            const eHp = info.type === 'megaboss'
+                ? (MEGABOSS_HP[selectedDifficulty] || 50000)
+                : Math.floor(def.hp * info.hpScale * difficultyConfig.hpMult);
+            const eSpd = info.type === 'megaboss' ? def.speed : def.speed * difficultyConfig.speedMult;
+            const eReward = Math.floor(def.reward * difficultyConfig.rewardMult);
+            enemies.push({
+                type: info.type,
+                x: PATH[0].x, y: PATH[0].y,
+                hp: eHp, maxHp: eHp,
+                speed: eSpd, baseSpeed: eSpd,
+                color: def.color, reward: eReward, size: def.size,
+                pathIdx: 0, alive: true, slowTimer: 0, dist: 0,
+            });
+            spawnTimer = 0.45;
+        }
+    }
+
+    for (const e of enemies) {
+        if (!e.alive) continue;
+        if (e.slowTimer > 0) { e.slowTimer -= dt; e.speed = e.baseSpeed * 0.4; }
+        else { e.speed = e.baseSpeed; }
+
+        const target = PATH[e.pathIdx + 1];
+        if (!target) {
+            e.alive = false; lives--;
+            spawnParticles(e.x, e.y, '#e74c3c', 8, 100);
+            if (lives <= 0) {
+                lives = 0;
+                endGame(false);
+            }
+            continue;
+        }
+        const dx = target.x - e.x, dy = target.y - e.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const step = e.speed * dt;
+        if (step >= dist) { e.x = target.x; e.y = target.y; e.pathIdx++; e.dist += dist; }
+        else { e.x += (dx / dist) * step; e.y += (dy / dist) * step; e.dist += step; }
+    }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        if (!enemies[i].alive) enemies.splice(i, 1);
+    }
+
+    if (waveActive && spawnQueue.length === 0 && enemies.length === 0) {
+        waveActive = false;
+        money += 20 + wave * 5;
+        document.getElementById('wave-btn').disabled = false;
+        if (wave < totalWaves) document.getElementById('wave-btn').textContent = `Start Wave ${wave + 1}`;
+        else {
+            endGame(true);
+        }
+    }
+}
+
+// ============================================================
+//  TOWER UPDATE
+// ============================================================
+function updateTowers(dt) {
+    for (const t of towers) {
+        if (t.type === 'elfhut' || t.type === 'milbase' || t.type === 'dj') continue;
+        t.cooldown -= dt;
+        t.shootAnim = Math.max(0, t.shootAnim - dt * 8);
+
+        let best = null, bestDist = -1;
+        for (const e of enemies) {
+            if (!e.alive) continue;
+            const dx = e.x - t.x, dy = e.y - t.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d <= t.range && e.dist > bestDist) { best = e; bestDist = e.dist; }
+        }
+
+        t.target = best;
+        if (best) {
+            t.angle = Math.atan2(best.y - t.y, best.x - t.x);
+            if (t.cooldown <= 0) {
+                t.cooldown = t.fireRate * getSpeedBoost(t);
+                t.shootAnim = 1;
+                shoot(t, best);
+            }
+        }
+    }
+}
+
+function shoot(tower, target) {
+    const def = TOWER_DEFS[tower.type];
+    const boost = getBoostMultiplier(tower);
+    const speed = tower.type === 'sniper' ? 500 : tower.type === 'rocketeer' ? 220 : tower.type === 'tank' ? 280 : tower.type === 'jet' ? 350 : tower.type === 'plane' ? 300 : tower.type === 'heli' ? 400 : tower.type === 'minigunner' ? 450 : 350;
+
+    if (tower.type === 'shotgunner') {
+        const pellets = TOWER_DEFS.shotgunner.pellets || 5;
+        const spread = 0.4; // radians total spread
+        for (let i = 0; i < pellets; i++) {
+            const a = tower.angle - spread/2 + (spread / (pellets-1)) * i;
+            projectiles.push({
+                x: tower.x + Math.cos(a) * 14,
+                y: tower.y + Math.sin(a) * 14,
+                // Shotgun pellets don't track - they fly straight
+                vx: Math.cos(a) * speed,
+                vy: Math.sin(a) * speed,
+                targetId: null,
+                speed,
+                damage: tower.damage * boost / pellets * 2,
+                splash: 0, slow: 0, slowDur: 0,
+                color: def.color,
+                size: 2,
+                alive: true,
+                towerType: 'shotgunner',
+                life: 0.3, // short range
+            });
+        }
+        spawnParticles(tower.x + Math.cos(tower.angle) * 16, tower.y + Math.sin(tower.angle) * 16, '#ff8', 4, 60);
+        return; // Don't do normal projectile
+    }
+
+    projectiles.push({
+        x: tower.x + Math.cos(tower.angle) * 14,
+        y: tower.y + Math.sin(tower.angle) * 14,
+        targetId: target, speed,
+        damage: tower.damage * boost,
+        splash: tower.splash,
+        slow: tower.slow, slowDur: tower.slowDur || 0,
+        color: def.color,
+        size: tower.type === 'rocketeer' ? 5 : tower.type === 'tank' ? 5 : tower.type === 'jet' ? 4 : tower.type === 'plane' ? 4 : tower.type === 'heli' ? 3 : tower.type === 'minigunner' ? 2 : 3,
+        alive: true,
+        towerType: tower.type,
+    });
+
+    // Muzzle flash particles
+    spawnParticles(
+        tower.x + Math.cos(tower.angle) * 16,
+        tower.y + Math.sin(tower.angle) * 16,
+        tower.type === 'frost' ? '#88eedd' : tower.type === 'jet' ? '#f39c12' : tower.type === 'plane' ? '#ff8' : tower.type === 'tank' ? '#f1c40f' : tower.type === 'heli' ? '#ff8844' : '#ff8',
+        2, 40
+    );
+}
+
+// ============================================================
+//  PROJECTILE UPDATE
+// ============================================================
+function updateProjectiles(dt) {
+    for (const p of projectiles) {
+        if (!p.alive) continue;
+        if (p.vx !== undefined) {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            if (p.life !== undefined) { p.life -= dt; if (p.life <= 0) { p.alive = false; continue; } }
+            // Check collision with all enemies
+            for (const e of enemies) {
+                if (!e.alive) continue;
+                const dx = p.x - e.x, dy = p.y - e.y;
+                if (Math.abs(dx) < e.size + 3 && Math.abs(dy) < e.size + 3) {
+                    hitEnemy(e, p);
+                    p.alive = false;
+                    break;
+                }
+            }
+            continue;
+        }
+        const t = p.targetId;
+        if (!t || !t.alive) { p.alive = false; continue; }
+
+        const dx = t.x - p.x, dy = t.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const step = p.speed * dt;
+        if (step >= dist) { hitEnemy(t, p); p.alive = false; }
+        else { p.x += (dx / dist) * step; p.y += (dy / dist) * step; }
+    }
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        if (!projectiles[i].alive) projectiles.splice(i, 1);
+    }
+}
+
+function hitEnemy(enemy, proj) {
+    enemy.hp -= proj.damage;
+    spawnParticles(enemy.x, enemy.y, enemy.color, 4, 80);
+    if (proj.slow > 0) enemy.slowTimer = proj.slowDur;
+
+    if (proj.splash > 0) {
+        spawnParticles(enemy.x, enemy.y, '#f39c12', 8, 120);
+        for (const e of enemies) {
+            if (e === enemy || !e.alive) continue;
+            const dx = e.x - enemy.x, dy = e.y - enemy.y;
+            if (Math.sqrt(dx * dx + dy * dy) <= proj.splash) {
+                e.hp -= proj.damage * 0.5;
+                if (proj.slow > 0) e.slowTimer = proj.slowDur;
+                if (e.hp <= 0 && e.alive) {
+                    e.alive = false; score += e.reward; money += e.reward;
+                    spawnParticles(e.x, e.y, e.color, 10, 150);
+                }
+            }
+        }
+    }
+    if (enemy.hp <= 0 && enemy.alive) {
+        enemy.alive = false; score += enemy.reward; money += enemy.reward;
+        spawnParticles(enemy.x, enemy.y, enemy.color, 12, 150);
+    }
+}
+
+// ============================================================
+//  PARTICLES
+// ============================================================
+function spawnParticles(x, y, color, count, speed) {
+    for (let i = 0; i < count && particles.length < 300; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = (Math.random() * 0.7 + 0.3) * speed;
+        const type = Math.random() < 0.3 ? 'spark' : Math.random() < 0.5 ? 'smoke' : 'debris';
+        particles.push({
+            x, y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd,
+            life: type === 'smoke' ? 0.4 + Math.random() * 0.5 : 0.15 + Math.random() * 0.3,
+            maxLife: type === 'smoke' ? 0.4 + Math.random() * 0.5 : 0.15 + Math.random() * 0.3,
+            color, size: type === 'smoke' ? 3 + Math.random() * 4 : 1.5 + Math.random() * 2.5,
+            ptype: type,
+            gravity: type === 'debris' ? 200 : 0,
+            rotation: Math.random() * Math.PI * 2,
+        });
+    }
+}
+
+function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        if (p.gravity) p.vy += p.gravity * dt;
+        p.vx *= (p.ptype === 'smoke' ? 0.92 : 0.95);
+        p.vy *= (p.ptype === 'smoke' ? 0.92 : 0.95);
+        p.life -= dt;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+// Pre-render static terrain to offscreen canvas (huge perf boost)
+let terrainCanvas = null;
+function buildTerrainCache() {
+    terrainCanvas = document.createElement('canvas');
+    terrainCanvas.width = COLS * TILE;
+    terrainCanvas.height = ROWS * TILE;
+    const tc = terrainCanvas.getContext('2d');
+    // Grass
+    tc.fillStyle = '#111820';
+    tc.fillRect(0, 0, terrainCanvas.width, terrainCanvas.height);
+    for (let gx = 0; gx < COLS; gx++) {
+        for (let gy = 0; gy < ROWS; gy++) {
+            if (pathSet.has(`${gx},${gy}`)) continue;
+            const seed = (gx * 73 + gy * 137) % 255;
+            const px = gx * TILE, py = gy * TILE;
+            const g = 18 + (seed % 8);
+            const b = 28 + (seed % 6);
+            tc.fillStyle = `rgb(${10 + seed % 5},${g},${b})`;
+            tc.fillRect(px, py, TILE, TILE);
+            tc.fillStyle = `rgba(30,${50 + seed % 20},20,0.3)`;
+            for (let i = 0; i < 3; i++) {
+                const bx = px + ((seed * (i+1) * 7) % 36) + 2;
+                const by = py + ((seed * (i+1) * 13) % 36) + 2;
+                tc.fillRect(bx, by, 1, 3);
+            }
+            if (seed % 17 === 0) {
+                tc.fillStyle = 'rgba(80,80,90,0.3)';
+                tc.fillRect(px + seed % 30 + 4, py + (seed * 3) % 30 + 4, 3, 2);
+            }
+        }
+    }
+    // Path
+    const isPathTile = (cc, rr) => pathSet.has(`${cc},${rr}`);
+    for (const [c, r] of PATH_COORDS) {
+        if (c < 0 || c >= COLS || r < 0 || r >= ROWS) continue;
+        const px = c * TILE, py = r * TILE;
+        const seed = (c * 51 + r * 97) % 255;
+        const br = 38 + (seed % 10);
+        tc.fillStyle = `rgb(${br},${br - 4},${br - 12})`;
+        tc.fillRect(px, py, TILE, TILE);
+        tc.fillStyle = `rgba(${45 + seed % 8},${42 + seed % 6},${35 + seed % 8},0.6)`;
+        for (let i = 0; i < 4; i++) {
+            const sx = px + ((seed * (i + 1) * 11) % 30) + 2;
+            const sy = py + ((seed * (i + 1) * 17) % 30) + 2;
+            const sw = 6 + (seed * (i + 1)) % 6;
+            const sh = 5 + (seed * (i + 2)) % 5;
+            tc.fillRect(sx, sy, sw, sh);
+        }
+        tc.fillStyle = 'rgba(0,0,0,0.15)';
+        for (let i = 0; i < 2; i++) {
+            const cx2 = px + ((seed * (i + 3) * 7) % 34) + 3;
+            const cy2 = py + ((seed * (i + 5) * 11) % 34) + 3;
+            tc.fillRect(cx2, cy2, 4 + i * 2, 1);
+        }
+        tc.fillStyle = 'rgba(20,24,36,0.4)';
+        if (!isPathTile(c, r - 1)) tc.fillRect(px, py, TILE, 3);
+        if (!isPathTile(c, r + 1)) tc.fillRect(px, py + TILE - 3, TILE, 3);
+        if (!isPathTile(c - 1, r)) tc.fillRect(px, py, 3, TILE);
+        if (!isPathTile(c + 1, r)) tc.fillRect(px + TILE - 3, py, 3, TILE);
+    }
+    // Direction arrows
+    tc.fillStyle = 'rgba(255,255,255,0.04)';
+    for (let i = 0; i < PATH.length - 1; i += 4) {
+        const p = PATH[i], n = PATH[i + 1];
+        const angle = Math.atan2(n.y - p.y, n.x - p.x);
+        tc.save(); tc.translate(p.x, p.y); tc.rotate(angle);
+        tc.beginPath(); tc.moveTo(8, 0); tc.lineTo(-4, -5); tc.lineTo(-4, 5); tc.fill();
+        tc.restore();
+    }
+    // Grid dots
+    tc.fillStyle = 'rgba(255,255,255,0.06)';
+    for (let c = 0; c <= COLS; c++) {
+        for (let r = 0; r <= ROWS; r++) {
+            tc.fillRect(c * TILE - 0.5, r * TILE - 0.5, 1, 1);
+        }
+    }
+}
+buildTerrainCache();
+
+function render() {
+    // Draw cached terrain (grass + path + grid) in one fast blit
+    if (terrainCanvas) {
+        ctx.drawImage(terrainCanvas, 0, 0);
+    }
+
+    renderAmbient();
+    renderBoostRanges();
+    renderTowers();
+    renderElves();
+    renderEnemies();
+    renderProjectiles();
+    renderParticles();
+    renderHoverPreview();
+    renderSelectedRange();
+
+    if (gameOver) renderGameOver();
+}
+
+function renderGrass() {
+    // Base dark ground
+    ctx.fillStyle = '#111820';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Grass texture — scattered darker/lighter patches
+    // Use seeded random based on position for consistency
+    for (let gx = 0; gx < COLS; gx++) {
+        for (let gy = 0; gy < ROWS; gy++) {
+            if (pathSet.has(`${gx},${gy}`)) continue;
+            const seed = (gx * 73 + gy * 137) % 255;
+            const px = gx * TILE, py = gy * TILE;
+            // Slight color variation per tile
+            const g = 18 + (seed % 8);
+            const b = 28 + (seed % 6);
+            ctx.fillStyle = `rgb(${10 + seed % 5},${g},${b})`;
+            ctx.fillRect(px, py, TILE, TILE);
+            // Grass blades (tiny lines)
+            ctx.fillStyle = `rgba(30,${50 + seed % 20},20,0.3)`;
+            for (let i = 0; i < 3; i++) {
+                const bx = px + ((seed * (i+1) * 7) % 36) + 2;
+                const by = py + ((seed * (i+1) * 13) % 36) + 2;
+                ctx.fillRect(bx, by, 1, 3);
+            }
+            // Occasional small rocks/pebbles
+            if (seed % 17 === 0) {
+                ctx.fillStyle = 'rgba(80,80,90,0.3)';
+                ctx.fillRect(px + seed % 30 + 4, py + (seed * 3) % 30 + 4, 3, 2);
+            }
+        }
+    }
+}
+
+function renderPath() {
+    // Draw path tiles with dirt/cobblestone texture
+    for (const [c, r] of PATH_COORDS) {
+        if (c < 0 || c >= COLS || r < 0 || r >= ROWS) continue;
+        const px = c * TILE, py = r * TILE;
+        const seed = (c * 51 + r * 97) % 255;
+        // Base dirt color with variation
+        const br = 38 + (seed % 10);
+        ctx.fillStyle = `rgb(${br},${br - 4},${br - 12})`;
+        ctx.fillRect(px, py, TILE, TILE);
+        // Cobblestone pattern
+        ctx.fillStyle = `rgba(${45 + seed % 8},${42 + seed % 6},${35 + seed % 8},0.6)`;
+        // Draw a few stone shapes per tile
+        for (let i = 0; i < 4; i++) {
+            const sx = px + ((seed * (i + 1) * 11) % 30) + 2;
+            const sy = py + ((seed * (i + 1) * 17) % 30) + 2;
+            const sw = 6 + (seed * (i + 1)) % 6;
+            const sh = 5 + (seed * (i + 2)) % 5;
+            ctx.fillRect(sx, sy, sw, sh);
+        }
+        // Stone edges/cracks
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        for (let i = 0; i < 2; i++) {
+            const cx = px + ((seed * (i + 3) * 7) % 34) + 3;
+            const cy = py + ((seed * (i + 5) * 11) % 34) + 3;
+            ctx.fillRect(cx, cy, 4 + i * 2, 1);
+        }
+        // Worn edges where path meets grass
+        const isPathTile = (cc, rr) => pathSet.has(`${cc},${rr}`);
+        ctx.fillStyle = 'rgba(20,24,36,0.4)';
+        if (!isPathTile(c, r - 1)) ctx.fillRect(px, py, TILE, 3); // top edge
+        if (!isPathTile(c, r + 1)) ctx.fillRect(px, py + TILE - 3, TILE, 3); // bottom
+        if (!isPathTile(c - 1, r)) ctx.fillRect(px, py, 3, TILE); // left
+        if (!isPathTile(c + 1, r)) ctx.fillRect(px + TILE - 3, py, 3, TILE); // right
+    }
+    // Direction arrows (subtler)
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    for (let i = 0; i < PATH.length - 1; i += 4) {
+        const p = PATH[i], n = PATH[i + 1];
+        const angle = Math.atan2(n.y - p.y, n.x - p.x);
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(angle);
+        ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -5); ctx.lineTo(-4, 5); ctx.fill();
+        ctx.restore();
+    }
+}
+
+function renderGrid() {
+    // Subtle dots at grid intersections instead of full lines
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    for (let c = 0; c <= COLS; c++) {
+        for (let r = 0; r <= ROWS; r++) {
+            ctx.fillRect(c * TILE - 0.5, r * TILE - 0.5, 1, 1);
+        }
+    }
+}
+
+// Ambient floating dust/fireflies
+let ambientParticles = [];
+function initAmbient() {
+    for (let i = 0; i < 30; i++) {
+        ambientParticles.push({
+            x: Math.random() * COLS * TILE,
+            y: Math.random() * ROWS * TILE,
+            size: 0.5 + Math.random() * 1.5,
+            speed: 5 + Math.random() * 10,
+            phase: Math.random() * Math.PI * 2,
+            alpha: 0.1 + Math.random() * 0.2,
+        });
+    }
+}
+initAmbient();
+
+function renderAmbient() {
+    const t = performance.now() / 1000;
+    for (const p of ambientParticles) {
+        p.x += Math.sin(t * 0.5 + p.phase) * p.speed * 0.016;
+        p.y += Math.cos(t * 0.3 + p.phase) * p.speed * 0.01;
+        // Wrap around
+        if (p.x < 0) p.x += COLS * TILE;
+        if (p.x > COLS * TILE) p.x -= COLS * TILE;
+        if (p.y < 0) p.y += ROWS * TILE;
+        if (p.y > ROWS * TILE) p.y -= ROWS * TILE;
+
+        ctx.fillStyle = '#aaffaa';
+        ctx.globalAlpha = p.alpha * (0.5 + Math.sin(t * 2 + p.phase) * 0.5);
+        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+}
+
+// ============================================================
+//  DRAW PERSON (detailed pixel art character)
+// ============================================================
+function drawPerson(x, y, angle, type, level, shootAnim) {
+    const def = TOWER_DEFS[type];
+    const skin = getSkinTier(type, level);
+    const sk = def.skinColor;
+    const out = skin ? skin.outfit : def.outfit;
+    const hatC = skin ? skin.hat : def.hat;
+    const acc = skin ? skin.accent : '#555';
+    const glow = skin ? skin.glow : null;
+    const tier = level >= 5 ? 3 : level >= 3 ? 2 : 1;
+
+    // === VEHICLES: completely different rendering ===
+    if (type === 'jet') { drawJet(x, y, angle, level, shootAnim, skin, glow, tier); return; }
+    if (type === 'plane') { drawPlane(x, y, angle, level, shootAnim, skin, glow, tier); return; }
+    if (type === 'heli') { drawHeli(x, y, angle, level, shootAnim, skin, glow, tier); return; }
+    if (type === 'tank') { drawTank(x, y, angle, level, shootAnim, skin, glow, tier); return; }
+    if (type === 'elfhut') { drawElfHut(x, y, level, skin, glow, tier); return; }
+    if (type === 'milbase') { drawMilBase(x, y, level, skin, glow, tier); return; }
+    if (type === 'dj') { drawDJ(x, y, level, skin, glow, tier); return; }
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Idle breathing animation
+    const breathe = Math.sin(performance.now() / 800 + x * 0.1) * 0.5;
+
+    // Elite glow aura for tier 3 — pulsing radial gradient
+    if (glow) {
+        const glowSize = 22 + Math.sin(performance.now() / 300) * 3;
+        const grad = ctx.createRadialGradient(0, -2, 0, 0, -2, glowSize);
+        grad.addColorStop(0, glow + '30');
+        grad.addColorStop(0.6, glow + '10');
+        grad.addColorStop(1, glow + '00');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, -2, glowSize, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Ground shadow — larger when shooting (recoil)
+    const shadowSize = 11 + shootAnim * 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(1, 13, shadowSize, 4 + shootAnim, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ambient light on ground under character
+    if (tier >= 2) {
+        ctx.fillStyle = glow ? glow + '08' : 'rgba(255,255,200,0.03)';
+        ctx.beginPath();
+        ctx.ellipse(0, 10, 14, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // === BOOTS ===
+    const bootColor = tier >= 3 ? '#0a0a0a' : tier >= 2 ? '#151515' : '#1a1a1a';
+    ctx.fillStyle = bootColor;
+    ctx.fillRect(-6, 8, 5, 5);
+    ctx.fillRect(1, 8, 5, 5);
+    // Boot soles
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(-7, 12, 6, 1);
+    ctx.fillRect(1, 12, 6, 1);
+    // Boot highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(-5, 8, 3, 1);
+    ctx.fillRect(2, 8, 3, 1);
+    if (tier >= 2) { ctx.fillStyle = acc; ctx.fillRect(-5, 9, 3, 1); ctx.fillRect(2, 9, 3, 1); }
+
+    // === LEGS ===
+    if (type === 'minigunner') {
+        ctx.fillStyle = tier >= 2 ? '#1a1a1a' : '#2d3436';
+        ctx.fillRect(-6, 2, 5, 7); ctx.fillRect(1, 2, 5, 7);
+        if (tier >= 3) { ctx.fillStyle = acc; ctx.fillRect(-6, 3, 5, 1); ctx.fillRect(1, 3, 5, 1); }
+    } else if (type === 'frost') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, 0, 14, 9);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-7, 8, 14, 1);
+        if (tier >= 2) { ctx.fillRect(-7, 4, 14, 1); }
+    } else if (type === 'commander') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-5, 2, 4, 7); ctx.fillRect(1, 2, 4, 7);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-2, 2, 1, 6); ctx.fillRect(1, 2, 1, 6);
+    } else if (type === 'shotgunner') {
+        ctx.fillStyle = tier >= 3 ? '#111' : '#5a4030';
+        ctx.fillRect(-5, 2, 4, 7); ctx.fillRect(1, 2, 4, 7);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(-5, 5, 4, 2); ctx.fillRect(1, 5, 4, 2);
+    } else {
+        ctx.fillStyle = tier >= 3 ? '#111' : tier >= 2 ? '#2a3a2a' : '#374a3a';
+        ctx.fillRect(-5, 2, 4, 7); ctx.fillRect(1, 2, 4, 7);
+        ctx.fillStyle = tier >= 2 ? acc : '#555';
+        ctx.fillRect(-5, 5, 4, 2); ctx.fillRect(1, 5, 4, 2);
+    }
+
+    // === TORSO ===
+    if (type === 'minigunner') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-9, -8, 18, 12);
+        ctx.fillStyle = tier >= 3 ? '#333' : '#555';
+        ctx.fillRect(-8, -7, 16, 10);
+        if (tier >= 2) {
+            ctx.fillStyle = acc;
+            ctx.fillRect(-7, -7, 14, 1);
+            ctx.fillRect(-7, 2, 14, 1);
+        }
+        ctx.fillStyle = out;
+        ctx.fillRect(-3, -7, 6, 10);
+        ctx.fillStyle = tier >= 3 ? acc : '#8B7355';
+        ctx.fillRect(-8, -3, 16, 2);
+        if (tier >= 3) {
+            // Glowing ammo
+            ctx.fillStyle = glow;
+            ctx.globalAlpha = 0.5;
+            for (let i = -7; i < 8; i += 3) ctx.fillRect(i, -3, 2, 2);
+            ctx.globalAlpha = 1;
+        }
+    } else if (type === 'frost') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-8, -8, 16, 10);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-6, -8, 12, 2);
+        // Mystical symbol — bigger/glowier at higher tiers
+        const orbColor = glow || '#00ffcc';
+        ctx.fillStyle = orbColor;
+        ctx.globalAlpha = 0.4 + Math.sin(performance.now() / 300) * 0.3;
+        if (tier >= 3) {
+            ctx.fillRect(-3, -6, 6, 6);
+        } else {
+            ctx.fillRect(-2, -5, 4, 4);
+        }
+        ctx.globalAlpha = 1;
+    } else if (type === 'sniper') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        if (tier >= 3) {
+            // Skull on chest
+            ctx.fillStyle = '#ddd';
+            ctx.fillRect(-2, -5, 4, 3);
+            ctx.fillStyle = out;
+            ctx.fillRect(-1, -5, 1, 1);
+            ctx.fillRect(0, -5, 1, 1);
+        } else {
+            ctx.fillStyle = tier >= 2 ? '#4a6e47' : '#5b3a7a';
+            ctx.fillRect(-5, -6, 3, 3); ctx.fillRect(2, -4, 3, 3);
+        }
+        ctx.fillStyle = '#444';
+        ctx.fillRect(-7, -7, 3, 10);
+    } else if (type === 'rocketeer') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        ctx.fillStyle = tier >= 3 ? '#333' : acc;
+        ctx.fillRect(-6, -6, 12, 8);
+        if (tier >= 3) {
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.3;
+            ctx.fillRect(-5, -5, 10, 6);
+            ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = tier >= 2 ? '#555' : '#6d5010';
+        ctx.fillRect(-5, -1, 4, 3); ctx.fillRect(1, -1, 4, 3);
+    } else if (type === 'commander') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-1, -6, 2, 2); ctx.fillRect(-1, -3, 2, 2); ctx.fillRect(-1, 0, 2, 2);
+        // Epaulettes
+        ctx.fillStyle = out;
+        ctx.fillRect(-9, -8, 3, 4); ctx.fillRect(6, -8, 3, 4);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-9, -8, 3, 1); ctx.fillRect(6, -8, 3, 1);
+        if (tier >= 2) {
+            ctx.fillStyle = acc; ctx.fillRect(-9, -7, 3, 1); ctx.fillRect(6, -7, 3, 1);
+        }
+        // Medals grow with tier
+        ctx.fillStyle = '#e74c3c'; ctx.fillRect(-5, -6, 2, 2);
+        ctx.fillStyle = '#3498db'; ctx.fillRect(-5, -4, 2, 2);
+        if (tier >= 2) { ctx.fillStyle = '#f1c40f'; ctx.fillRect(3, -6, 2, 2); }
+        if (tier >= 3) { ctx.fillStyle = '#2ecc71'; ctx.fillRect(3, -4, 2, 2); }
+        ctx.fillStyle = acc;
+        ctx.fillRect(-7, 2, 14, 2);
+        ctx.fillRect(-2, 2, 4, 2);
+    } else if (type === 'shotgunner') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        // Leather vest
+        ctx.fillStyle = tier >= 3 ? '#222' : '#5a3a1a';
+        ctx.fillRect(-6, -6, 12, 8);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(-5, -1, 3, 3); ctx.fillRect(2, -1, 3, 3);
+        // Shotgun shells on belt
+        ctx.fillStyle = '#c0392b';
+        ctx.fillRect(-6, 2, 2, 3); ctx.fillRect(-3, 2, 2, 3); ctx.fillRect(0, 2, 2, 3);
+        ctx.fillRect(3, 2, 2, 3);
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.15; ctx.fillRect(-6, -6, 12, 8); ctx.globalAlpha = 1; }
+    } else {
+        // Gunner
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        ctx.fillStyle = tier >= 3 ? '#222' : tier >= 2 ? '#3d5c3a' : '#3d5c3a';
+        ctx.fillRect(-6, -6, 12, 8);
+        if (tier >= 3) {
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.15;
+            ctx.fillRect(-5, -5, 10, 6); ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = tier >= 2 ? '#555' : '#2d4a2a';
+        ctx.fillRect(-5, -1, 3, 3); ctx.fillRect(2, -1, 3, 3);
+    }
+
+    // === ARMS + WEAPON ===
+    ctx.save();
+    ctx.rotate(angle);
+    const recoil = shootAnim * 4;
+    ctx.fillStyle = out;
+    ctx.fillRect(0, 2, 6, 4);
+    ctx.fillStyle = sk;
+    ctx.fillRect(5, 2, 4, 3);
+
+    const metalHi = tier >= 3 ? '#666' : '#444';
+    const metalLo = tier >= 3 ? '#444' : '#2a2a2a';
+    const metalMid = tier >= 3 ? '#555' : '#333';
+
+    if (type === 'gunner') {
+        ctx.fillStyle = sk; ctx.fillRect(6, -3, 5, 4);
+        ctx.fillStyle = tier >= 3 ? '#1a1a1a' : '#3d2b1f';
+        ctx.fillRect(4 - recoil, -4, 6, 6);
+        ctx.fillStyle = metalLo;
+        ctx.fillRect(9 - recoil, -2, 12, 3);
+        ctx.fillStyle = metalHi;
+        ctx.fillRect(8 - recoil, -3, 4, 5);
+        ctx.fillStyle = metalMid; ctx.fillRect(6 - recoil, 1, 3, 5);
+        ctx.fillStyle = '#555'; ctx.fillRect(20 - recoil, -2, 2, 3);
+        if (tier >= 2) {
+            // Laser sight
+            ctx.fillStyle = tier >= 3 ? glow : '#e74c3c';
+            ctx.globalAlpha = 0.5; ctx.fillRect(15 - recoil, -5, 1, 3); ctx.globalAlpha = 1;
+        }
+        if (tier >= 3) {
+            // Under-barrel grenade launcher
+            ctx.fillStyle = '#333'; ctx.fillRect(10 - recoil, 3, 8, 3);
+        }
+    } else if (type === 'rocketeer') {
+        ctx.fillStyle = sk; ctx.fillRect(5, -3, 4, 5);
+        ctx.fillStyle = tier >= 3 ? '#1a1a1a' : '#4a6e3a';
+        ctx.fillRect(7 - recoil, -5, 18, 8);
+        ctx.fillStyle = tier >= 3 ? '#0a0a0a' : '#3d5c30';
+        ctx.fillRect(7 - recoil, -5, 18, 3);
+        ctx.fillStyle = '#222'; ctx.fillRect(24 - recoil, -4, 2, 6);
+        ctx.fillStyle = tier >= 3 ? glow : '#c0392b';
+        ctx.fillRect(25 - recoil, -3, 3, 4);
+        if (tier >= 2) {
+            // Double tube
+            ctx.fillStyle = tier >= 3 ? '#1a1a1a' : '#4a6e3a';
+            ctx.fillRect(7 - recoil, -10, 18, 4);
+            ctx.fillStyle = tier >= 3 ? glow : '#c0392b';
+            ctx.fillRect(25 - recoil, -9, 3, 3);
+        }
+    } else if (type === 'frost') {
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 4, 3);
+        ctx.fillStyle = tier >= 3 ? '#2a1a4a' : '#5a3a1a';
+        ctx.fillRect(8, -2, 3, 16);
+        ctx.fillStyle = acc; ctx.fillRect(7, -4, 5, 3);
+        const orbC = glow || '#00ffdd';
+        const pulse = Math.sin(performance.now() / 180) * 2;
+        const orbSize = tier >= 3 ? 9 : tier >= 2 ? 7 : 5;
+        ctx.fillStyle = orbC;
+        ctx.globalAlpha = 0.25;
+        ctx.beginPath(); ctx.arc(9.5, -9 + pulse, orbSize, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.arc(9.5, -9 + pulse, orbSize * 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff'; ctx.fillRect(8, -10 + pulse, 3, 3);
+        // Orbiting particles — more at higher tiers
+        ctx.fillStyle = orbC; ctx.globalAlpha = 0.5;
+        const numOrbs = tier >= 3 ? 6 : tier >= 2 ? 4 : 3;
+        const t2 = performance.now() / (tier >= 3 ? 250 : 400);
+        for (let i = 0; i < numOrbs; i++) {
+            const a = t2 + i * (Math.PI * 2 / numOrbs);
+            const r = orbSize + 3;
+            ctx.fillRect(9 + Math.cos(a) * r, -8 + Math.sin(a) * r, 2, 2);
+        }
+        ctx.globalAlpha = 1;
+    } else if (type === 'sniper') {
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 4, 3);
+        ctx.fillStyle = tier >= 3 ? '#1a1a1a' : '#3d2b1f';
+        ctx.fillRect(0 - recoil, -3, 8, 5);
+        ctx.fillStyle = metalLo; ctx.fillRect(7 - recoil, -3, 6, 4);
+        ctx.fillStyle = metalMid; ctx.fillRect(12 - recoil, -2, 18, 2);
+        ctx.fillStyle = '#222'; ctx.fillRect(10 - recoil, -7, 8, 4);
+        ctx.fillStyle = tier >= 3 ? glow : '#4488ff';
+        ctx.globalAlpha = 0.7; ctx.fillRect(17 - recoil, -6, 2, 3); ctx.globalAlpha = 1;
+        ctx.fillStyle = '#555'; ctx.fillRect(29 - recoil, -2, 3, 3);
+        if (tier >= 3) {
+            // Glowing barrel
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.3;
+            ctx.fillRect(12 - recoil, -2, 18, 2); ctx.globalAlpha = 1;
+        }
+    } else if (type === 'minigunner') {
+        ctx.fillStyle = sk; ctx.fillRect(4, -5, 6, 6);
+        ctx.fillStyle = tier >= 3 ? '#333' : '#5a5a3a';
+        ctx.fillRect(0, 3, 8, 6);
+        ctx.fillStyle = tier >= 3 ? acc : '#8B7355';
+        ctx.fillRect(1, 4, 6, 2);
+        ctx.fillStyle = metalMid;
+        ctx.fillRect(6 - recoil, -7, 6, 12);
+        ctx.fillStyle = metalHi;
+        ctx.fillRect(7 - recoil, -6, 4, 10);
+        ctx.fillStyle = metalLo;
+        const spin = performance.now() / (tier >= 3 ? 30 : 50);
+        const nBarrels = tier >= 3 ? 6 : 4;
+        for (let i = 0; i < nBarrels; i++) {
+            const bOff = Math.sin(spin + i * (Math.PI * 2 / nBarrels)) * 3;
+            ctx.fillRect(11 - recoil, -4 + bOff, 14, 2);
+        }
+        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(11 - recoil, -6, 3, 10);
+        if (shootAnim > 0.3) {
+            ctx.fillStyle = tier >= 3 ? glow || '#ff8' : '#ff8';
+            ctx.globalAlpha = shootAnim; ctx.fillRect(24, -5, 5, 8); ctx.globalAlpha = 1;
+        }
+    } else if (type === 'shotgunner') {
+        ctx.fillStyle = sk; ctx.fillRect(5, -3, 5, 5);
+        // Pump shotgun
+        ctx.fillStyle = '#3d2b1f';
+        ctx.fillRect(3 - recoil, -4, 7, 6); // stock
+        ctx.fillStyle = metalLo;
+        ctx.fillRect(9 - recoil, -2, 10, 3); // barrel
+        ctx.fillStyle = metalHi;
+        ctx.fillRect(9 - recoil, -2, 10, 1);
+        // Pump grip
+        ctx.fillStyle = '#4d3b2f';
+        ctx.fillRect(13 - recoil, -4, 4, 6);
+        // Muzzle flash for shotgun is wider
+        if (shootAnim > 0.5) {
+            ctx.fillStyle = '#ff8';
+            ctx.globalAlpha = shootAnim - 0.3;
+            ctx.fillRect(18 - recoil, -6, 6, 10);
+            ctx.globalAlpha = 1;
+        }
+    } else if (type === 'commander') {
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 5, 4);
+        ctx.fillStyle = metalLo;
+        ctx.fillRect(9 - recoil, -2, 8, 3);
+        ctx.fillStyle = metalMid;
+        ctx.fillRect(9 - recoil, 1, 4, 4);
+        if (tier >= 2) {
+            // Sword in off hand
+            ctx.fillStyle = out; ctx.fillRect(5, -7, 5, 3);
+            ctx.fillStyle = '#aaa'; ctx.fillRect(9, -8, 2, 12);
+            ctx.fillStyle = acc; ctx.fillRect(8, -8, 4, 2);
+        } else {
+            ctx.fillStyle = out; ctx.fillRect(5, -7, 5, 3);
+            ctx.fillStyle = sk; ctx.fillRect(9, -7, 4, 3);
+            ctx.fillRect(12, -6, 3, 1);
+        }
+    }
+    ctx.restore();
+
+    // === HEAD ===
+    // Neck with shadow
+    ctx.fillStyle = sk;
+    ctx.fillRect(-2, -10, 4, 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(-2, -10, 4, 1);
+
+    // Head shape
+    ctx.fillStyle = sk;
+    ctx.fillRect(-5, -19 + breathe, 10, 10);
+    ctx.fillRect(-4, -10 + breathe, 8, 2);
+
+    // Face shading — left side darker (light from right)
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(-5, -18 + breathe, 3, 8);
+    // Right side highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(2, -18 + breathe, 3, 6);
+    // Forehead highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(-3, -19 + breathe, 6, 2);
+    // Chin shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(-3, -10 + breathe, 6, 1);
+
+    // Ears with inner detail
+    ctx.fillStyle = sk;
+    ctx.fillRect(-7, -16 + breathe, 2, 4); ctx.fillRect(5, -16 + breathe, 2, 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(-7, -15 + breathe, 1, 2); ctx.fillRect(6, -15 + breathe, 1, 2);
+
+    // Eye tracking (follows target angle)
+    const eyeDx = Math.cos(angle) * 1.5;
+    const eyeY = -15 + breathe;
+    // Eye whites with slight shadow above
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(-4 + eyeDx * 0.3, eyeY - 1, 3, 1); ctx.fillRect(1 + eyeDx * 0.3, eyeY - 1, 3, 1);
+    ctx.fillStyle = '#e8e8e8';
+    ctx.fillRect(-4 + eyeDx * 0.3, eyeY, 3, 3); ctx.fillRect(1 + eyeDx * 0.3, eyeY, 3, 3);
+    // Glowing eyes for tier 3
+    if (tier >= 3 && glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(-4, eyeY, 3, 3); ctx.fillRect(1, eyeY, 3, 3);
+        ctx.globalAlpha = 1;
+        // Eye glow spill
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.15;
+        ctx.fillRect(-5, eyeY - 1, 5, 5); ctx.fillRect(0, eyeY - 1, 5, 5);
+        ctx.globalAlpha = 1;
+    }
+    // Iris/pupil
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-3 + eyeDx, eyeY + 1, 2, 2); ctx.fillRect(2 + eyeDx, eyeY + 1, 2, 2);
+    // Pupil highlight (tiny white dot)
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillRect(-3 + eyeDx, eyeY + 1, 1, 1); ctx.fillRect(2 + eyeDx, eyeY + 1, 1, 1);
+    // Eyebrows — thicker, more expressive
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(-4, eyeY - 2, 3, 1); ctx.fillRect(1, eyeY - 2, 3, 1);
+
+    // Nose shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(-1, -13 + breathe, 2, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(0, -13 + breathe, 1, 1);
+
+    // Mouth
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(-2, -11 + breathe, 4, 1);
+
+    // === HATS (use skin tier colors) ===
+    if (type === 'gunner') {
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-7, -22, 14, 5); ctx.fillRect(-8, -20, 16, 4);
+        ctx.fillStyle = acc; ctx.fillRect(-7, -19, 14, 1);
+        if (tier >= 2) { ctx.fillStyle = '#0f0'; ctx.fillRect(-3, -23, 6, 3); } // NVGs down
+        else { ctx.fillStyle = '#444'; ctx.fillRect(-2, -23, 4, 2); }
+        if (tier >= 3) {
+            // Tactical goggles on helmet
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.5;
+            ctx.fillRect(-4, -23, 8, 2); ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = '#555'; ctx.fillRect(-6, -13, 1, 2); ctx.fillRect(5, -13, 1, 2);
+    } else if (type === 'rocketeer') {
+        if (tier >= 3) {
+            // Full face helmet
+            ctx.fillStyle = hatC;
+            ctx.fillRect(-7, -22, 14, 6); ctx.fillRect(-6, -17, 12, 6);
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.5;
+            ctx.fillRect(-4, -16, 8, 2); ctx.globalAlpha = 1;
+        } else {
+            ctx.fillStyle = hatC;
+            ctx.fillRect(-6, -21, 14, 3); ctx.fillRect(-4, -22, 10, 2);
+            if (tier >= 2) {
+                ctx.fillStyle = acc; ctx.fillRect(-3, -20, 2, 2);
+                ctx.fillRect(1, -20, 2, 2);
+            } else {
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(-3, -20, 2, 2);
+            }
+        }
+    } else if (type === 'frost') {
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-8, -21, 16, 3);
+        ctx.fillRect(-6, -24, 12, 5); ctx.fillRect(-5, -27, 10, 4);
+        ctx.fillRect(-4, -30, 8, 4); ctx.fillRect(-3, -33, 6, 4);
+        ctx.fillRect(-2, -35, 4, 3); ctx.fillRect(-4, -36, 3, 2);
+        ctx.fillStyle = acc; ctx.fillRect(-6, -24, 12, 2);
+        const starC = glow || '#00ffcc';
+        ctx.fillStyle = starC;
+        ctx.globalAlpha = 0.6 + Math.sin(performance.now() / 250) * 0.3;
+        ctx.fillRect(-1, -28, 2, 2);
+        if (tier >= 2) ctx.fillRect(2, -32, 2, 2);
+        if (tier >= 3) { ctx.fillRect(-3, -30, 2, 2); ctx.fillRect(0, -34, 2, 2); }
+        ctx.globalAlpha = 1;
+    } else if (type === 'sniper') {
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-7, -22, 14, 5); ctx.fillRect(-8, -20, 16, 5);
+        if (tier >= 3) {
+            // Full mask
+            ctx.fillRect(-5, -16, 10, 6);
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.5;
+            ctx.fillRect(-4, -15, 3, 2); ctx.fillRect(1, -15, 3, 2);
+            ctx.globalAlpha = 1;
+        } else {
+            ctx.fillStyle = tier >= 2 ? '#3d5c3a' : '#5b3a7a';
+            ctx.fillRect(-8, -16, 2, 4); ctx.fillRect(5, -16, 2, 4);
+            ctx.fillStyle = hatC; ctx.fillRect(-5, -12, 10, 2);
+        }
+    } else if (type === 'shotgunner') {
+        // Cowboy/western hat
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-8, -20, 16, 2); // brim
+        ctx.fillRect(-5, -23, 10, 4); // crown
+        ctx.fillRect(-4, -24, 8, 2);
+        if (tier >= 2) { ctx.fillStyle = acc; ctx.fillRect(-4, -21, 8, 1); }
+        if (tier >= 3) { ctx.fillStyle = glow; ctx.globalAlpha = 0.3; ctx.fillRect(-5, -23, 10, 4); ctx.globalAlpha = 1; }
+    } else if (type === 'minigunner') {
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-6, -21, 12, 3);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-8, -16, 3, 5); ctx.fillRect(5, -16, 3, 5);
+        if (tier >= 3) {
+            // Full helmet visor
+            ctx.fillStyle = hatC;
+            ctx.fillRect(-7, -22, 14, 5);
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.4;
+            ctx.fillRect(-5, -18, 10, 2); ctx.globalAlpha = 1;
+        } else if (tier >= 2) {
+            ctx.fillStyle = acc;
+            ctx.fillRect(-5, -21, 10, 1);
+        }
+    } else if (type === 'commander') {
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-7, -23, 14, 5);
+        ctx.fillRect(-6, -25, 12, 3); ctx.fillRect(-5, -26, 10, 2);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-7, -21, 14, 2);
+        // Visor
+        ctx.fillStyle = '#111';
+        ctx.fillRect(-9, -19, 18, 2); ctx.fillRect(-10, -18, 20, 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(-8, -18, 16, 1);
+        // Badge
+        ctx.fillStyle = acc;
+        ctx.fillRect(-2, -24, 4, 3);
+        if (tier >= 2) {
+            ctx.fillRect(-4, -23, 8, 1); // wider eagle wings
+        }
+        if (tier >= 3) {
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.4;
+            ctx.fillRect(-3, -25, 6, 4); ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = acc;
+        ctx.fillRect(-5, -14, 1, 2); ctx.fillRect(4, -14, 1, 2);
+    }
+
+    // === LEVEL RANK INDICATOR ===
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 15, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 16, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+// === PLANE TOWER (WW2-style propeller plane) ===
+function drawPlane(x, y, angle, level, shootAnim, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    const out = skin ? skin.outfit : '#2d6a2d';
+    const hatC = skin ? skin.hat : '#1e8449';
+    const acc = skin ? skin.accent : '#aaa';
+
+    // Shadow on ground
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(2, 16, 14, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hover bob + circle pattern (plane flies in circles like jet)
+    const bob = Math.sin(performance.now() / 250) * 2;
+    const circleT = performance.now() / 2500;
+    const cx = Math.cos(circleT) * 4;
+    const cy = Math.sin(circleT) * 2.5;
+
+    ctx.save();
+    ctx.translate(cx, -10 + bob + cy);
+    // Plane faces its flight direction
+    const flyAngle = circleT + Math.PI / 2;
+    ctx.rotate(flyAngle);
+
+    // Elite glow
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.12 + Math.sin(performance.now() / 200) * 0.06;
+        ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // === FUSELAGE (shorter, stubbier than jet) ===
+    ctx.fillStyle = out;
+    ctx.fillRect(-12, -3, 26, 6);
+    // Nose (rounded)
+    ctx.fillRect(13, -2, 4, 4);
+    ctx.fillRect(16, -1, 2, 2);
+
+    // Cockpit canopy
+    ctx.fillStyle = tier >= 3 ? '#330000' : '#2a5a1e';
+    ctx.fillRect(4, -2, 7, 4);
+    ctx.fillStyle = tier >= 3 ? '#550000' : '#4a8a3e';
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(5, -1, 5, 2);
+    ctx.globalAlpha = 1;
+
+    // Body highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(-10, -3, 22, 2);
+
+    // === WINGS (straight, not swept) ===
+    ctx.fillStyle = out;
+    ctx.fillRect(-4, -16, 14, 3);  // top wing
+    ctx.fillRect(-4, 13, 14, 3);   // bottom wing
+    // Wing tips
+    ctx.fillStyle = hatC;
+    ctx.fillRect(-4, -17, 3, 2);
+    ctx.fillRect(-4, 15, 3, 2);
+    // Wing struts
+    ctx.fillStyle = '#444';
+    ctx.fillRect(0, -13, 1, 8);
+    ctx.fillRect(6, -13, 1, 8);
+    ctx.fillRect(0, 5, 1, 8);
+    ctx.fillRect(6, 5, 1, 8);
+
+    if (tier >= 2) {
+        // Bombs under wings
+        ctx.fillStyle = '#555';
+        ctx.fillRect(-2, -18, 3, 2);
+        ctx.fillRect(5, -18, 3, 2);
+        ctx.fillRect(-2, 16, 3, 2);
+        ctx.fillRect(5, 16, 3, 2);
+        ctx.fillStyle = tier >= 3 ? glow : '#c0392b';
+        ctx.fillRect(-2, -19, 3, 1);
+        ctx.fillRect(5, -19, 3, 1);
+    }
+
+    // === TAIL with rudder ===
+    ctx.fillStyle = out;
+    ctx.fillRect(-14, -5, 3, 3);
+    ctx.fillRect(-14, 2, 3, 3);
+    // Vertical stabilizer
+    ctx.fillRect(-15, -7, 3, 4);
+    ctx.fillRect(-15, 3, 3, 4);
+    ctx.fillStyle = hatC;
+    ctx.fillRect(-15, -8, 2, 2);
+    ctx.fillRect(-15, 6, 2, 2);
+
+    // === SPINNING PROPELLER at nose ===
+    const propAngle = performance.now() / (tier >= 3 ? 20 : 35);
+    ctx.save();
+    ctx.translate(17, 0);
+    ctx.rotate(propAngle);
+    ctx.fillStyle = '#888';
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(-1, -10, 2, 20); // blade 1
+    ctx.rotate(Math.PI / 2);
+    ctx.fillRect(-1, -10, 2, 20); // blade 2
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    // Propeller hub
+    ctx.fillStyle = '#555';
+    ctx.fillRect(16, -1, 3, 2);
+
+    // === BOMB BAY underneath ===
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-2, 1, 8, 2);
+
+    // Bomb drop animation
+    if (shootAnim > 0.5) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-1, 3, 3, 3 + (1 - shootAnim) * 8);
+    }
+
+    // Tier 3 glow edges
+    if (tier >= 3) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.2;
+        ctx.fillRect(-10, -3, 24, 1);
+        ctx.fillRect(-10, 2, 24, 1);
+        ctx.fillRect(-4, -16, 14, 1);
+        ctx.fillRect(-4, 15, 14, 1);
+        ctx.globalAlpha = 1;
+    }
+
+    // === ENGINE EXHAUST ===
+    ctx.fillStyle = '#888';
+    ctx.globalAlpha = 0.3 + Math.random() * 0.2;
+    const exLen = tier >= 3 ? 8 : tier >= 2 ? 6 : 4;
+    ctx.fillRect(-14 - exLen, -1, exLen, 2);
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+
+    // Level chevrons
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 18, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 19, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+// === TANK TOWER ===
+function drawTank(x, y, angle, level, shootAnim, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#556b2f';
+    const hatC = skin ? skin.hat : '#4a6e23';
+    const acc = skin ? skin.accent : '#8B7355';
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(1, 13, 17, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Elite glow
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.1 + Math.sin(performance.now() / 300) * 0.05;
+        ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // === TRACKS ===
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-16, 4, 32, 8);   // left track
+    ctx.fillRect(-16, -12, 32, 8); // right track (top-down view)
+    // Track detail (rollers)
+    ctx.fillStyle = '#333';
+    for (let i = -14; i < 16; i += 5) {
+        ctx.fillRect(i, 5, 3, 6);
+        ctx.fillRect(i, -11, 3, 6);
+    }
+    // Track edges
+    ctx.fillStyle = '#444';
+    ctx.fillRect(-16, 4, 32, 1);
+    ctx.fillRect(-16, 11, 32, 1);
+    ctx.fillRect(-16, -12, 32, 1);
+    ctx.fillRect(-16, -5, 32, 1);
+
+    // === HULL ===
+    ctx.fillStyle = out;
+    ctx.fillRect(-13, -5, 26, 10);
+    // Hull front (angled)
+    ctx.fillStyle = hatC;
+    ctx.fillRect(12, -4, 4, 8);
+    ctx.fillRect(15, -3, 2, 6);
+    // Hull rear
+    ctx.fillStyle = out;
+    ctx.fillRect(-15, -3, 3, 6);
+    // Hull highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(-12, -5, 24, 3);
+    // Hull details
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-10, -3, 4, 3); // hatch
+    ctx.fillRect(5, -3, 4, 3);   // hatch
+    if (tier >= 2) {
+        // Reactive armor blocks
+        ctx.fillStyle = acc;
+        ctx.fillRect(-12, -5, 3, 2); ctx.fillRect(-7, -5, 3, 2);
+        ctx.fillRect(-12, 3, 3, 2);  ctx.fillRect(-7, 3, 3, 2);
+    }
+
+    // === TURRET (rotates) ===
+    ctx.save();
+    ctx.rotate(angle);
+    const recoil = shootAnim * 5;
+
+    // Turret base
+    ctx.fillStyle = hatC;
+    ctx.beginPath();
+    ctx.arc(0, 0, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = out;
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main gun barrel
+    ctx.fillStyle = '#444';
+    ctx.fillRect(5 - recoil, -2, 18, 4);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(5 - recoil, -2, 18, 2);
+    // Muzzle brake
+    ctx.fillStyle = '#333';
+    ctx.fillRect(21 - recoil, -3, 3, 6);
+
+    if (tier >= 2) {
+        // Co-axial MG
+        ctx.fillStyle = '#333';
+        ctx.fillRect(6 - recoil, 3, 12, 2);
+    }
+    if (tier >= 3) {
+        // Bigger barrel + glow
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(5 - recoil, -2, 18, 4);
+        ctx.globalAlpha = 1;
+    }
+
+    // Muzzle flash
+    if (shootAnim > 0.6) {
+        ctx.fillStyle = '#ff8';
+        ctx.globalAlpha = shootAnim - 0.4;
+        ctx.fillRect(23 - recoil, -4, 6, 8);
+        ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Commander cupola
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-2, -2, 4, 4);
+    if (tier >= 3) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(-3, -3, 6, 6);
+        ctx.globalAlpha = 1;
+    }
+
+    // Level chevrons
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 16, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 17, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+// === HELICOPTER TOWER ===
+function drawHeli(x, y, angle, level, shootAnim, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#2c3e50';
+    const hatC = skin ? skin.hat : '#555';
+    const acc = skin ? skin.accent : '#aaa';
+
+    // Shadow (moves with sway)
+    const bob = Math.sin(performance.now() / 200) * 2;
+    const sway = Math.sin(performance.now() / 350) * 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(sway, 16, 14, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(sway, -10 + bob);
+
+    // Elite glow
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.12 + Math.sin(performance.now() / 200) * 0.06;
+        ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // === TAIL BOOM ===
+    ctx.fillStyle = out;
+    ctx.fillRect(-18, -1, 12, 3);
+    // Tail fin (vertical)
+    ctx.fillStyle = hatC;
+    ctx.fillRect(-20, -5, 3, 6);
+    // Tail rotor
+    ctx.fillStyle = acc;
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(-21, -7, 1, 10);
+    ctx.globalAlpha = 1;
+
+    // === MAIN BODY (fuselage) ===
+    ctx.fillStyle = out;
+    // Body
+    ctx.fillRect(-7, -5, 18, 10);
+    // Nose (rounded)
+    ctx.fillRect(10, -4, 5, 8);
+    ctx.fillRect(14, -3, 3, 6);
+    ctx.fillRect(16, -2, 2, 4);
+    // Cockpit glass
+    ctx.fillStyle = tier >= 3 ? '#002200' : '#1a6e9e';
+    ctx.fillRect(8, -3, 6, 6);
+    ctx.fillStyle = tier >= 3 ? '#004400' : '#2196F3';
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(9, -2, 4, 4);
+    ctx.globalAlpha = 1;
+    // Body highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(-5, -5, 14, 3);
+    // Side panels
+    ctx.fillStyle = hatC;
+    ctx.fillRect(-5, -5, 12, 2);
+    ctx.fillRect(-5, 3, 12, 2);
+
+    // === LANDING SKIDS ===
+    ctx.fillStyle = '#444';
+    ctx.fillRect(-4, 6, 2, 5);
+    ctx.fillRect(6, 6, 2, 5);
+    ctx.fillRect(-6, 10, 16, 1);
+
+    // === WEAPONS (rotate toward target) ===
+    ctx.save();
+    ctx.translate(4, 4);
+    ctx.rotate(angle);
+    const recoil = shootAnim * 3;
+    // Gun pod
+    ctx.fillStyle = '#333';
+    ctx.fillRect(2 - recoil, -1, 10, 3);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(11 - recoil, -1, 2, 3);
+    if (tier >= 2) {
+        // Missile pods on sides
+        ctx.fillStyle = '#555';
+        ctx.fillRect(0, -5, 8, 2);
+        ctx.fillRect(0, 4, 8, 2);
+        ctx.fillStyle = tier >= 3 ? glow : '#c0392b';
+        ctx.fillRect(7, -5, 2, 2);
+        ctx.fillRect(7, 4, 2, 2);
+    }
+    if (shootAnim > 0.5) {
+        ctx.fillStyle = '#ff8';
+        ctx.globalAlpha = shootAnim - 0.3;
+        ctx.fillRect(12, -2, 4, 5);
+        ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+
+    // === MAIN ROTOR (spinning) ===
+    const rotorAngle = performance.now() / 40;
+    ctx.save();
+    ctx.translate(0, -2);
+    ctx.rotate(rotorAngle);
+    ctx.fillStyle = '#888';
+    ctx.globalAlpha = 0.5;
+    // 4 blades
+    const bladeLen = tier >= 3 ? 20 : tier >= 2 ? 18 : 16;
+    ctx.fillRect(-bladeLen, -1, bladeLen * 2, 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillRect(-bladeLen, -1, bladeLen * 2, 2);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // Rotor hub
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-2, -4, 4, 4);
+
+    if (tier >= 3) {
+        // Glow on body edges
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.2;
+        ctx.fillRect(-7, -5, 18, 1);
+        ctx.fillRect(-7, 4, 18, 1);
+        ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Level chevrons
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 18, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 19, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+// === JET TOWER ===
+function drawJet(x, y, angle, level, shootAnim, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    const out = skin ? skin.outfit : '#1a5276';
+    const hatC = skin ? skin.hat : '#00bfff';
+    const acc = skin ? skin.accent : '#aaa';
+
+    // Shadow on ground
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(2, 16, 15, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hover bob + gentle circle pattern (jet does flyovers)
+    const bob = Math.sin(performance.now() / 200) * 1.5;
+    const circleT = performance.now() / 2000;
+    const cx = Math.cos(circleT) * 3;
+    const cy = Math.sin(circleT) * 2;
+
+    ctx.save();
+    ctx.translate(cx, -12 + bob + cy);
+    // Jet faces its flight direction (smooth circle), NOT snapping to enemies
+    const flyAngle = circleT + Math.PI / 2;
+    ctx.rotate(flyAngle);
+
+    // Elite glow
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.12 + Math.sin(performance.now() / 200) * 0.06;
+        ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // === EXHAUST ===
+    ctx.fillStyle = '#f39c12';
+    ctx.globalAlpha = 0.3 + Math.random() * 0.3;
+    const exLen = tier >= 3 ? 12 : tier >= 2 ? 9 : 6;
+    ctx.fillRect(-18 - exLen, -1, exLen, 3);
+    if (tier >= 2) {
+        ctx.fillRect(-18 - exLen, -4, exLen - 2, 2);
+        ctx.fillRect(-18 - exLen, 2, exLen - 2, 2);
+    }
+    ctx.fillStyle = '#e74c3c';
+    ctx.globalAlpha = 0.2;
+    ctx.fillRect(-18 - exLen - 3, 0, 4, 1);
+    ctx.globalAlpha = 1;
+
+    // === FUSELAGE ===
+    ctx.fillStyle = out;
+    ctx.fillRect(-16, -3, 32, 7);
+    // Nose cone (pointed)
+    ctx.fillStyle = acc;
+    ctx.fillRect(16, -2, 4, 5);
+    ctx.fillRect(19, -1, 3, 3);
+    ctx.fillRect(21, 0, 2, 1);
+    // Body shading
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(-14, -3, 28, 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(-14, 2, 28, 2);
+
+    // Cockpit canopy
+    ctx.fillStyle = tier >= 3 ? '#330000' : '#0a4a6e';
+    ctx.fillRect(7, -2, 8, 5);
+    ctx.fillStyle = tier >= 3 ? '#550000' : '#2196F3';
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(8, -1, 6, 3);
+    ctx.globalAlpha = 1;
+
+    // Air intakes
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-4, -4, 4, 2);
+    ctx.fillRect(-4, 3, 4, 2);
+
+    // === WINGS (swept back) ===
+    ctx.fillStyle = out;
+    // Main swept wings
+    ctx.fillRect(-8, -14, 18, 3);
+    ctx.fillRect(-8, 11, 18, 3);
+    // Wing tips colored
+    ctx.fillStyle = hatC;
+    ctx.fillRect(-8, -15, 3, 2);
+    ctx.fillRect(-8, 13, 3, 2);
+    // Wing roots thicker
+    ctx.fillStyle = out;
+    ctx.fillRect(0, -11, 6, 8);
+    ctx.fillRect(0, 4, 6, 7);
+
+    if (tier >= 2) {
+        // Pylons + missiles under wings
+        ctx.fillStyle = '#444';
+        ctx.fillRect(-2, -16, 1, 3);
+        ctx.fillRect(-2, 14, 1, 3);
+        ctx.fillRect(4, -16, 1, 3);
+        ctx.fillRect(4, 14, 1, 3);
+        ctx.fillStyle = '#666';
+        ctx.fillRect(-3, -17, 3, 2);
+        ctx.fillRect(-3, 16, 3, 2);
+        ctx.fillRect(3, -17, 3, 2);
+        ctx.fillRect(3, 16, 3, 2);
+        ctx.fillStyle = tier >= 3 ? glow : '#c0392b';
+        ctx.fillRect(-3, -18, 3, 1);
+        ctx.fillRect(-3, 17, 3, 1);
+        ctx.fillRect(3, -18, 3, 1);
+        ctx.fillRect(3, 17, 3, 1);
+    }
+
+    // === TAIL ===
+    ctx.fillStyle = out;
+    ctx.fillRect(-18, -6, 4, 3);
+    ctx.fillRect(-18, 3, 4, 3);
+    // Vertical stabilizers (twin)
+    ctx.fillRect(-17, -8, 3, 5);
+    ctx.fillRect(-17, 3, 3, 5);
+    ctx.fillStyle = hatC;
+    ctx.fillRect(-17, -9, 2, 2);
+    ctx.fillRect(-17, 7, 2, 2);
+
+    // Tier 3 stealth glow edges
+    if (tier >= 3) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.2;
+        ctx.fillRect(-14, -3, 30, 1);
+        ctx.fillRect(-14, 3, 30, 1);
+        ctx.fillRect(-8, -14, 18, 1);
+        ctx.fillRect(-8, 13, 18, 1);
+        ctx.globalAlpha = 1;
+    }
+
+    // Bomb drop animation
+    if (shootAnim > 0.5) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-1, 3, 3, 3 + (1 - shootAnim) * 8);
+    }
+
+    ctx.restore();
+
+    // Level chevrons
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 18, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 19, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+// ============================================================
+//  ELF HUT DRAWING
+// ============================================================
+// ============================================================
+//  DJ TOWER DRAWING
+// ============================================================
+function drawDJ(x, y, level, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#ad1457';
+    const acc = skin ? skin.accent : '#e91e63';
+    const t = performance.now() / 1000;
+    const beat = Math.sin(t * 10); // main beat pulse
+    const beatHard = Math.max(0, Math.sin(t * 10)); // only positive pulse
+
+    // === BASS SHOCKWAVE RINGS ===
+    for (let ring = 0; ring < (tier >= 3 ? 4 : tier >= 2 ? 3 : 2); ring++) {
+        const rPhase = (t * 2 + ring * 0.8) % 2;
+        const rSize = 8 + rPhase * 14;
+        ctx.strokeStyle = acc;
+        ctx.lineWidth = tier >= 3 ? 2 : 1.5;
+        ctx.globalAlpha = Math.max(0, 0.3 - rPhase * 0.15);
+        ctx.beginPath(); ctx.arc(0, 0, rSize, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // === LIGHT BEAMS (tier 2+) ===
+    if (tier >= 2) {
+        const beamAngle = t * 1.5;
+        for (let b = 0; b < (tier >= 3 ? 4 : 2); b++) {
+            const a = beamAngle + b * (Math.PI / (tier >= 3 ? 2 : 1));
+            ctx.save();
+            ctx.rotate(a);
+            ctx.fillStyle = tier >= 3 ? glow : acc;
+            ctx.globalAlpha = 0.06;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-4, -30);
+            ctx.lineTo(4, -30);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        }
+    }
+
+    // === SHADOW ===
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(-18, 12, 36, 5);
+
+    // === STAGE PLATFORM ===
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(-18, 8, 36, 6);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-17, 9, 34, 4);
+    // Stage LED strip
+    const ledColors = tier >= 3 ? ['#00ffff', '#ff00ff', '#00ff00', '#ffff00'] : [acc, '#ff44aa', acc, '#ff88cc'];
+    for (let i = 0; i < 8; i++) {
+        ctx.fillStyle = ledColors[i % ledColors.length];
+        ctx.globalAlpha = 0.3 + beatHard * 0.4;
+        ctx.fillRect(-16 + i * 4, 12, 3, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // === BIG SPEAKERS (stacked) ===
+    for (let side = -1; side <= 1; side += 2) {
+        const sx = side * 15;
+        // Bottom speaker (subwoofer)
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(sx - 5, -2, 10, 12);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(sx - 4, -1, 8, 10);
+        // Speaker cone
+        ctx.fillStyle = '#333';
+        ctx.fillRect(sx - 3, 1 + beatHard * 0.5, 6, 6);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(sx - 2, 2 + beatHard * 0.5, 4, 4);
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(sx - 1, 3 + beatHard * 0.3, 2, 2);
+        // Top speaker (tweeter)
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(sx - 4, -8, 8, 7);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(sx - 3, -7, 6, 5);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(sx - 2, -6 + beatHard * 0.3, 4, 3);
+        // LED on speaker
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.4 + beatHard * 0.5;
+        ctx.fillRect(sx - 1, -8, 2, 1);
+        ctx.globalAlpha = 1;
+        // Air blast lines from speaker
+        if (beatHard > 0.5) {
+            ctx.strokeStyle = acc;
+            ctx.globalAlpha = 0.15;
+            ctx.lineWidth = 1;
+            for (let w = 0; w < 3; w++) {
+                ctx.beginPath();
+                ctx.moveTo(sx + side * 5, -2 + w * 3);
+                ctx.lineTo(sx + side * (8 + w * 2), -3 + w * 3);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // === DJ BOOTH (big table with gear) ===
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-12, 0, 24, 10);
+    // Booth front panel with LED trim
+    ctx.fillStyle = out;
+    ctx.fillRect(-12, 6, 24, 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(-11, 7, 22, 1);
+    // LED strip on booth front
+    for (let i = 0; i < 6; i++) {
+        const ledBright = Math.sin(t * 8 + i * 0.5) * 0.3 + 0.3;
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = ledBright;
+        ctx.fillRect(-10 + i * 4, 8, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // Booth surface
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(-11, 0, 22, 7);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-10, 1, 20, 5);
+
+    // === TURNTABLES ===
+    const spin = t * 4;
+    for (let side = -1; side <= 1; side += 2) {
+        const tx = side * 5;
+        // Deck housing
+        ctx.fillStyle = '#111';
+        ctx.fillRect(tx - 4, 1, 8, 5);
+        // Record (spinning)
+        ctx.save();
+        ctx.translate(tx, 3.5);
+        ctx.rotate(spin * side);
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(-3, -3, 6, 6);
+        // Grooves
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(-2, -2, 4, 4);
+        ctx.strokeRect(-1, -1, 2, 2);
+        // Label
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(-1, -1, 2, 2);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        // Tone arm
+        ctx.fillStyle = '#888';
+        ctx.fillRect(tx + 3, 1, 1, 3);
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(tx + 2.5, 1, 1.5, 1);
+    }
+
+    // === MIXER (center) ===
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(-2, 1, 4, 5);
+    // Faders
+    ctx.fillStyle = '#666';
+    ctx.fillRect(-1, 2, 2, 1);
+    ctx.fillStyle = acc;
+    ctx.fillRect(-1, 3.5, 2, 0.5);
+    // VU meter LEDs
+    const vuLevel = 3 + Math.floor(beatHard * 3);
+    for (let v = 0; v < 5; v++) {
+        ctx.fillStyle = v < vuLevel ? (v >= 4 ? '#e74c3c' : v >= 3 ? '#f39c12' : '#2ecc71') : '#333';
+        ctx.fillRect(-1.5, 5 - v, 1, 0.7);
+        ctx.fillRect(0.5, 5 - v, 1, 0.7);
+    }
+
+    // === LAPTOP ===
+    if (tier >= 2) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-3, -2, 6, 3); // screen
+        ctx.fillStyle = '#1a3a5a';
+        ctx.fillRect(-2.5, -1.5, 5, 2); // screen glow
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.3 + beatHard * 0.3;
+        ctx.fillRect(-2, -1, 4, 1); // waveform on screen
+        ctx.globalAlpha = 1;
+    }
+
+    // === DJ PERSON ===
+    const headBob = beatHard * 2;
+
+    // Body/torso (behind booth)
+    ctx.fillStyle = out;
+    ctx.fillRect(-5, -8 - headBob * 0.3, 10, 8);
+    // Jacket detail
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(-4, -7 - headBob * 0.3, 3, 6);
+    // Chain/necklace
+    if (tier >= 2) {
+        ctx.fillStyle = tier >= 3 ? glow : '#f1c40f';
+        ctx.fillRect(-2, -5 - headBob * 0.3, 4, 1);
+        ctx.fillRect(-1, -4 - headBob * 0.3, 2, 1);
+    }
+
+    // Arms (one on deck, one raised)
+    ctx.fillStyle = '#f0c899';
+    // Left arm on turntable
+    ctx.fillRect(-9, -2, 5, 2);
+    ctx.fillStyle = out;
+    ctx.fillRect(-8, -4, 3, 3);
+    // Right arm raised (pumping to beat)
+    ctx.fillStyle = out;
+    ctx.fillRect(5, -6 - headBob * 2, 3, 4 + headBob);
+    ctx.fillStyle = '#f0c899';
+    ctx.fillRect(6, -8 - headBob * 2, 2, 2);
+    // Raised fist
+    ctx.fillStyle = '#f0c899';
+    ctx.fillRect(5.5, -9 - headBob * 2, 3, 2);
+
+    // Head
+    ctx.fillStyle = '#f0c899';
+    ctx.fillRect(-4, -16 - headBob, 8, 8);
+    // Face shading
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(-4, -14 - headBob, 2, 5);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(1, -15 - headBob, 2, 4);
+
+    // Big headphones
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-6, -14 - headBob, 3, 6); // left cup
+    ctx.fillRect(3, -14 - headBob, 3, 6);  // right cup
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-5, -13 - headBob, 1, 4);
+    ctx.fillRect(4, -13 - headBob, 1, 4);
+    // Headband
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(-5, -17 - headBob, 10, 2);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-4, -17 - headBob, 8, 1);
+    // Headphone LED
+    ctx.fillStyle = acc;
+    ctx.globalAlpha = 0.5 + beatHard * 0.5;
+    ctx.fillRect(-5, -12 - headBob, 1, 1);
+    ctx.fillRect(4, -12 - headBob, 1, 1);
+    ctx.globalAlpha = 1;
+
+    // Sunglasses (big, cool)
+    ctx.fillStyle = tier >= 3 ? '#111' : '#0a0a0a';
+    ctx.fillRect(-4, -13 - headBob, 8, 3);
+    // Lens shine
+    ctx.fillStyle = tier >= 3 ? glow : acc;
+    ctx.globalAlpha = 0.3 + beatHard * 0.4;
+    ctx.fillRect(-3, -13 - headBob, 3, 1);
+    ctx.fillRect(1, -13 - headBob, 3, 1);
+    ctx.globalAlpha = 1;
+    // Glasses bridge
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-1, -12 - headBob, 2, 1);
+
+    // Hair/cap
+    ctx.fillStyle = out;
+    ctx.fillRect(-4, -18 - headBob, 8, 3);
+    ctx.fillRect(-5, -17 - headBob, 10, 2);
+    if (tier >= 2) {
+        // Backwards cap brim
+        ctx.fillStyle = out;
+        ctx.fillRect(-5, -16 - headBob, 10, 2);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-4, -18 - headBob, 8, 1); // cap accent
+    }
+    if (tier >= 3) {
+        // Crown/halo
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.3 + beatHard * 0.2;
+        ctx.fillRect(-5, -20 - headBob, 10, 2);
+        ctx.fillRect(-3, -21 - headBob, 6, 1);
+        ctx.globalAlpha = 1;
+    }
+
+    // Mouth (open, hyping crowd)
+    ctx.fillStyle = '#300';
+    ctx.fillRect(-2, -10 - headBob, 4, 2);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-1, -10 - headBob, 2, 1);
+
+    // === FLOATING MUSIC NOTES (bigger, more) ===
+    ctx.font = tier >= 3 ? 'bold 12px serif' : '10px serif';
+    const noteCount = tier >= 3 ? 6 : tier >= 2 ? 4 : 3;
+    for (let n = 0; n < noteCount; n++) {
+        const na = t * 1.5 + n * (Math.PI * 2 / noteCount);
+        const nr = 16 + n * 3;
+        const nx = Math.cos(na) * nr;
+        const ny = -8 + Math.sin(na) * 8 - n * 2;
+        ctx.fillStyle = tier >= 3 ? glow : acc;
+        ctx.globalAlpha = 0.3 + Math.sin(t * 3 + n) * 0.2;
+        ctx.fillText(n % 2 === 0 ? '♪' : '♫', nx - 3, ny);
+    }
+    ctx.globalAlpha = 1;
+
+    // === TIER 3 FLOOR GLOW ===
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.06 + beatHard * 0.04;
+        ctx.fillRect(-18, -20, 36, 36);
+        ctx.globalAlpha = 1;
+    }
+
+    // Level indicator
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 16, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 17, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+function drawElfHut(x, y, level, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#388e3c';
+    const acc = skin ? skin.accent : '#a5d6a7';
+
+    // Glow
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.1 + Math.sin(performance.now() / 300) * 0.05;
+        ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(0, 14, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Hut base (wooden)
+    ctx.fillStyle = '#6d4c22';
+    ctx.fillRect(-12, -2, 24, 14);
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(-11, -1, 22, 12);
+    // Door
+    ctx.fillStyle = '#3d2b1f';
+    ctx.fillRect(-3, 3, 6, 9);
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(1, 7, 1, 1); // doorknob
+
+    // Roof (green triangle-ish)
+    ctx.fillStyle = out;
+    ctx.fillRect(-15, -8, 30, 3);
+    ctx.fillRect(-13, -11, 26, 4);
+    ctx.fillRect(-10, -14, 20, 4);
+    ctx.fillRect(-7, -16, 14, 3);
+    ctx.fillRect(-4, -18, 8, 3);
+    // Roof accent
+    ctx.fillStyle = acc;
+    ctx.fillRect(-13, -8, 26, 1);
+    if (tier >= 2) {
+        ctx.fillRect(-7, -14, 14, 1);
+    }
+    // Chimney
+    ctx.fillStyle = '#555';
+    ctx.fillRect(6, -20, 4, 6);
+    // Smoke
+    ctx.fillStyle = 'rgba(200,200,200,0.2)';
+    const smokeT = performance.now() / 500;
+    ctx.fillRect(7 + Math.sin(smokeT) * 2, -24, 2, 3);
+    ctx.fillRect(6 + Math.sin(smokeT + 1) * 2, -27, 3, 2);
+
+    // Windows (glow at night)
+    ctx.fillStyle = '#f1c40f';
+    ctx.globalAlpha = 0.6 + Math.sin(performance.now() / 400) * 0.2;
+    ctx.fillRect(-10, 2, 4, 4);
+    ctx.fillRect(6, 2, 4, 4);
+    ctx.globalAlpha = 1;
+    // Window cross
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(-9, 3.5, 2, 1); ctx.fillRect(-8.5, 2.5, 1, 3);
+    ctx.fillRect(7, 3.5, 2, 1); ctx.fillRect(7.5, 2.5, 1, 3);
+
+    // Tier decorations
+    if (tier >= 2) {
+        // Flag on top
+        ctx.fillStyle = acc;
+        ctx.fillRect(-1, -22, 2, 5);
+        ctx.fillStyle = tier >= 3 ? glow : '#e74c3c';
+        ctx.fillRect(1, -22, 5, 3);
+    }
+
+    // Level indicator
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 16, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 17, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+// ============================================================
+// MILITARY BASE DRAWING
+// ============================================================
+function drawMilBase(x, y, level, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#3d5c3a';
+    const acc = skin ? skin.accent : '#8B7355';
+
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.1 + Math.sin(performance.now() / 300) * 0.05;
+        ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(0, 14, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Concrete base
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-15, -4, 30, 16);
+    ctx.fillStyle = '#666';
+    ctx.fillRect(-14, -3, 28, 14);
+
+    // Building walls
+    ctx.fillStyle = out;
+    ctx.fillRect(-13, -10, 26, 8);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(-12, -9, 24, 3);
+
+    // Flat roof
+    ctx.fillStyle = '#444';
+    ctx.fillRect(-15, -12, 30, 3);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-14, -12, 28, 1);
+
+    // Garage door (open)
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-6, -2, 12, 14);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-5, -2, 10, 2);
+    // Caution stripes
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(-6, 10, 3, 2);
+    ctx.fillRect(0, 10, 3, 2);
+    ctx.fillRect(-6, -4, 12, 1);
+
+    // Windows
+    ctx.fillStyle = '#f1c40f';
+    ctx.globalAlpha = 0.4 + Math.sin(performance.now() / 500) * 0.2;
+    ctx.fillRect(-12, -8, 4, 3);
+    ctx.fillRect(8, -8, 4, 3);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = out;
+    ctx.fillRect(-10.5, -7, 1, 3); ctx.fillRect(-9, -6.5, 3, 1);
+    ctx.fillRect(9.5, -7, 1, 3); ctx.fillRect(9, -6.5, 3, 1);
+
+    // Antenna/radar on roof
+    ctx.fillStyle = '#777';
+    ctx.fillRect(8, -18, 2, 7);
+    if (tier >= 2) {
+        // Radar dish
+        ctx.fillStyle = acc;
+        const radarAngle = performance.now() / 800;
+        ctx.save();
+        ctx.translate(9, -18);
+        ctx.rotate(radarAngle);
+        ctx.fillRect(-4, -1, 8, 2);
+        ctx.restore();
+    }
+
+    // Sandbags in front
+    ctx.fillStyle = '#8B7355';
+    ctx.fillRect(-14, 8, 4, 4);
+    ctx.fillRect(10, 8, 4, 4);
+    ctx.fillStyle = '#7a6345';
+    ctx.fillRect(-13, 9, 2, 2);
+    ctx.fillRect(11, 9, 2, 2);
+
+    // Flag
+    if (tier >= 2) {
+        ctx.fillStyle = '#666';
+        ctx.fillRect(-12, -20, 2, 10);
+        ctx.fillStyle = tier >= 3 ? glow : '#e74c3c';
+        ctx.fillRect(-10, -20, 6, 4);
+        // Star on flag
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-8, -19, 2, 2);
+    }
+
+    // Tier 3 glow
+    if (tier >= 3) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.15;
+        ctx.fillRect(-15, -12, 30, 24);
+        ctx.globalAlpha = 1;
+    }
+
+    // Level chevrons
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 16, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 17, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+//  ELF & VEHICLE SYSTEM (spawned by elf huts and military bases)
+// ============================================================
+function updateElves(dt) {
+    const waveOver = !waveActive && spawnQueue.length === 0 && enemies.length === 0;
+
+    // Spawn units from elf huts and military bases
+    for (const t of towers) {
+        if (t.type !== 'elfhut' && t.type !== 'milbase') continue;
+        if (waveOver) continue;
+        if (!waveActive && enemies.length === 0) continue;
+        t.cooldown -= dt;
+        if (t.cooldown <= 0) {
+            t.cooldown = t.fireRate;
+            const boost = getBoostMultiplier(t);
+            const startIdx = PATH.length - 1;
+
+            const spawnIdx = PATH.length - 1; // spawn at END of path, walk toward start
+
+            if (t.type === 'elfhut') {
+                const elfCount = Math.min(2 + Math.floor(t.level / 2), 5);
+                for (let i = 0; i < elfCount; i++) {
+                    let role = 'sword';
+                    if (t.level >= 5 && Math.random() < 0.3) role = 'mage';
+                    else if (t.level >= 3 && Math.random() < 0.4) role = 'archer';
+                    elves.push({
+                        x: PATH[spawnIdx].x + (Math.random() - 0.5) * 10,
+                        y: PATH[spawnIdx].y + (Math.random() - 0.5) * 10,
+                        pathIdx: spawnIdx,
+                        speed: 100 * (1 + t.level * 0.15),
+                        damage: t.damage * boost * (1 + t.level * 0.3),
+                        alive: true,
+                        tier: t.level >= 5 ? 3 : t.level >= 3 ? 2 : 1,
+                        unitType: 'elf', role: role,
+                        shootRange: role === 'mage' ? 110 : role === 'archer' ? 90 : 0,
+                        shootCooldown: 0,
+                        shootRate: role === 'mage' ? 0.8 : 0.6,
+                        shootDmg: role === 'mage' ? t.damage * boost * 0.8 : t.damage * boost * 0.5,
+                        crouching: false, retreating: false, targetAngle: 0,
+                    });
+                }
+            } else if (t.type === 'milbase') {
+                const count = Math.min(1 + Math.floor(t.level / 2), 4);
+                for (let i = 0; i < count; i++) {
+                    let vtype = 'car';
+                    if (t.level >= 3 && Math.random() < 0.4) vtype = 'minitank';
+                    if (t.level >= 5 && Math.random() < 0.3) vtype = 'apc';
+                    elves.push({
+                        x: PATH[spawnIdx].x + (Math.random() - 0.5) * 10,
+                        y: PATH[spawnIdx].y + (Math.random() - 0.5) * 10,
+                        pathIdx: spawnIdx,
+                        speed: vtype === 'minitank' ? 60 * (1 + t.level * 0.1) : vtype === 'apc' ? 50 * (1 + t.level * 0.1) : 90 * (1 + t.level * 0.1),
+                        damage: t.damage * boost * (vtype === 'minitank' ? 3 : vtype === 'apc' ? 5 : 1.5) * (1 + t.level * 0.2),
+                        alive: true,
+                        tier: t.level >= 5 ? 3 : t.level >= 3 ? 2 : 1,
+                        unitType: 'vehicle', role: vtype,
+                        shootRange: vtype === 'minitank' ? 70 : vtype === 'apc' ? 80 : 0,
+                        shootCooldown: 0,
+                        shootRate: vtype === 'minitank' ? 1.2 : 1.5,
+                        shootDmg: t.damage * boost * (vtype === 'minitank' ? 2 : 3),
+                        crouching: false, retreating: false, targetAngle: 0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Update all spawned units
+    for (const elf of elves) {
+        if (!elf.alive) continue;
+
+        // Wave is over — keep walking forward, no more crouching
+        if (waveOver) {
+            elf.crouching = false;
+            elf.retreating = true;
+        }
+
+        // Check if ranged unit should stop and shoot
+        if (elf.shootRange > 0) {
+            let closest = null, closestDist = Infinity;
+            for (const e of enemies) {
+                if (!e.alive) continue;
+                const dx = e.x - elf.x, dy = e.y - elf.y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < elf.shootRange && d < closestDist) { closest = e; closestDist = d; }
+            }
+
+            if (closest) {
+                // Stop and crouch to shoot
+                elf.crouching = true;
+                elf.targetAngle = Math.atan2(closest.y - elf.y, closest.x - elf.x);
+                elf.shootCooldown -= dt;
+                if (elf.shootCooldown <= 0) {
+                    elf.shootCooldown = elf.shootRate;
+                    const a = elf.targetAngle;
+                    const color = elf.role === 'mage' ? '#aa44ff' : elf.role === 'archer' ? '#88ff44' : elf.unitType === 'vehicle' ? '#ff8844' : '#2ecc71';
+                    projectiles.push({
+                        x: elf.x + Math.cos(a) * 6, y: elf.y + Math.sin(a) * 6,
+                        targetId: closest, speed: 300,
+                        damage: elf.shootDmg, splash: 0, slow: 0, slowDur: 0,
+                        color: color, size: elf.unitType === 'vehicle' ? 3 : 2,
+                        alive: true, towerType: elf.unitType === 'vehicle' ? 'milbase' : 'elfhut',
+                    });
+                    spawnParticles(elf.x + Math.cos(a) * 6, elf.y + Math.sin(a) * 6, color, 1, 30);
+                }
+                // Don't move while crouching — skip to collision check
+            } else {
+                // No enemy in range — get up and keep moving
+                elf.crouching = false;
+            }
+        }
+
+        // Move backward along path toward start (only if not crouching)
+        if (!elf.crouching) {
+            if (elf.pathIdx > 0) {
+                const target = PATH[elf.pathIdx - 1];
+                const dx = target.x - elf.x, dy = target.y - elf.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const step = elf.speed * (elf.retreating ? 1.5 : 1) * dt;
+                if (step >= dist) { elf.x = target.x; elf.y = target.y; elf.pathIdx--; }
+                else { elf.x += (dx / dist) * step; elf.y += (dy / dist) * step; }
+            } else {
+                // Reached start of path — despawn
+                elf.alive = false;
+                spawnParticles(elf.x, elf.y, elf.unitType === 'vehicle' ? '#888' : '#88ff88', 4, 50);
+                continue;
+            }
+        }
+
+        // Collision with enemies — kamikaze crash (sword elves + all vehicles)
+        for (const e of enemies) {
+            if (!e.alive) continue;
+            const dx = elf.x - e.x, dy = elf.y - e.y;
+            const hitDist = e.size + (elf.unitType === 'vehicle' ? 8 : 5);
+            if (Math.abs(dx) < hitDist && Math.abs(dy) < hitDist) {
+                e.hp -= elf.damage;
+                const pColor = elf.unitType === 'vehicle' ? '#ff8844' : '#2ecc71';
+                spawnParticles(elf.x, elf.y, pColor, 8, 120);
+                spawnParticles(elf.x, elf.y, e.color, 4, 80);
+                if (e.hp <= 0 && e.alive) {
+                    e.alive = false;
+                    score += e.reward; money += e.reward;
+                    spawnParticles(e.x, e.y, e.color, 12, 150);
+                }
+                elf.alive = false;
+                break;
+            }
+        }
+    }
+
+    // Remove dead
+    for (let i = elves.length - 1; i >= 0; i--) {
+        if (!elves[i].alive) elves.splice(i, 1);
+    }
+}
+
+function renderElves() {
+    for (const elf of elves) {
+        if (!elf.alive) continue;
+        const tier = elf.tier;
+        const ex = elf.x, ey = elf.y;
+
+        let facing = 0;
+        if (elf.pathIdx > 0) {
+            const target = PATH[elf.pathIdx - 1];
+            facing = Math.atan2(target.y - ey, target.x - ex);
+        }
+
+        // === VEHICLES ===
+        if (elf.unitType === 'vehicle') {
+            ctx.save();
+            ctx.translate(ex, ey);
+            ctx.rotate(facing);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.beginPath(); ctx.ellipse(0, 4, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+
+            if (elf.role === 'minitank') {
+                // Mini tank
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-8, -4, 16, 3); // tracks top
+                ctx.fillRect(-8, 2, 16, 3);  // tracks bot
+                ctx.fillStyle = tier >= 3 ? '#1a1a1a' : '#556b2f';
+                ctx.fillRect(-6, -3, 12, 6); // hull
+                ctx.fillStyle = tier >= 3 ? '#333' : '#4a6e23';
+                ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); // turret
+                ctx.fillStyle = '#444';
+                ctx.fillRect(3, -1, 8, 2); // gun
+                if (tier >= 3) {
+                    ctx.fillStyle = '#ff4444'; ctx.globalAlpha = 0.3;
+                    ctx.fillRect(3, -1, 8, 2); ctx.globalAlpha = 1;
+                }
+            } else if (elf.role === 'apc') {
+                // APC — bigger armored vehicle
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-10, -5, 20, 3); ctx.fillRect(-10, 3, 20, 3);
+                ctx.fillStyle = tier >= 3 ? '#1a1a1a' : '#3d5c3a';
+                ctx.fillRect(-8, -4, 16, 8);
+                ctx.fillStyle = tier >= 3 ? '#222' : '#2d4a2a';
+                ctx.fillRect(-6, -3, 12, 6);
+                // Turret with bigger gun
+                ctx.fillStyle = '#555';
+                ctx.beginPath(); ctx.arc(-1, 0, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#444';
+                ctx.fillRect(2, -1, 10, 3);
+                if (tier >= 3) {
+                    ctx.fillStyle = '#ff4444'; ctx.globalAlpha = 0.2;
+                    ctx.fillRect(-8, -4, 16, 8); ctx.globalAlpha = 1;
+                }
+            } else {
+                // Jeep/car
+                ctx.fillStyle = '#444';
+                ctx.fillRect(-5, -4, 3, 3); ctx.fillRect(-5, 1, 3, 3); // wheels
+                ctx.fillRect(3, -4, 3, 3); ctx.fillRect(3, 1, 3, 3);
+                ctx.fillStyle = tier >= 3 ? '#1a1a1a' : '#556b2f';
+                ctx.fillRect(-6, -3, 12, 6); // body
+                ctx.fillStyle = tier >= 3 ? '#222' : '#4a6e23';
+                ctx.fillRect(-4, -2, 8, 4);
+                // Windshield
+                ctx.fillStyle = '#88aacc';
+                ctx.globalAlpha = 0.5;
+                ctx.fillRect(3, -2, 2, 4);
+                ctx.globalAlpha = 1;
+            }
+
+            // Exhaust puff
+            ctx.fillStyle = 'rgba(150,150,150,0.2)';
+            ctx.fillRect(-10 - Math.random() * 3, -1, 3, 2);
+
+            ctx.restore();
+            continue;
+        }
+
+        // === ELVES ===
+        const isCrouch = elf.crouching;
+        const isRetreat = elf.retreating;
+        // Face toward target when crouching, toward path when moving
+        const aimAngle = isCrouch ? (elf.targetAngle || facing) : facing;
+        const faceDir = Math.cos(aimAngle) < 0 ? -1 : 1;
+        const runCycle = (isCrouch || isRetreat) ? 0 : Math.sin(performance.now() / 80 + ex) * 2;
+
+        // Crouching offset — body drops lower
+        const crouchY = isCrouch ? 3 : 0;
+
+        // Retreating units are slightly transparent
+        if (isRetreat) ctx.globalAlpha = 0.6;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(ex - 4, ey + 5 + crouchY, 8, 2);
+
+        // Body color based on role
+        const bodyColor = elf.role === 'mage' ? (tier >= 3 ? '#2a0a4a' : '#5b2c8e')
+            : elf.role === 'archer' ? (tier >= 3 ? '#0a3a0a' : '#6d8b3a')
+            : (tier >= 3 ? '#0a3a0a' : tier >= 2 ? '#2e7d32' : '#388e3c');
+
+        if (isCrouch) {
+            // === CROUCHING POSE (kneeling) ===
+            // Knees on ground
+            ctx.fillStyle = '#2d5a1e';
+            ctx.fillRect(ex - 3, ey + 2, 6, 3);
+            // Boot tips
+            ctx.fillStyle = '#2a1a0a';
+            ctx.fillRect(ex - 4, ey + 4, 3, 2);
+            ctx.fillRect(ex + 1, ey + 4, 3, 2);
+            // Body (shorter, hunched)
+            ctx.fillStyle = bodyColor;
+            ctx.fillRect(ex - 3, ey - 2, 6, 5);
+            // Body shading
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            ctx.fillRect(ex - 3, ey - 2, 2, 5);
+            // Belt
+            ctx.fillStyle = '#5a3a1a'; ctx.fillRect(ex - 3, ey + 2, 6, 1);
+            ctx.fillStyle = tier >= 2 ? '#f1c40f' : '#888'; ctx.fillRect(ex - 1, ey + 2, 2, 1);
+
+            // Arms + weapon aimed at target
+            ctx.save();
+            ctx.translate(ex + faceDir * 2, ey - 1);
+            ctx.rotate(elf.targetAngle);
+            ctx.fillStyle = '#c8e6c9';
+            ctx.fillRect(0, -1, 5, 2);
+
+            if (elf.role === 'archer') {
+                // Bow drawn back
+                ctx.fillStyle = '#6d4c22';
+                ctx.fillRect(4, -4, 1, 7);
+                ctx.fillStyle = '#aaa';
+                ctx.fillRect(4, -4, 0.5, 7);
+                ctx.fillStyle = '#888';
+                ctx.fillRect(3, -1, 7, 1);
+                ctx.fillStyle = '#c0392b';
+                ctx.fillRect(9, -1, 2, 1);
+                // Draw string pulled back
+                ctx.strokeStyle = '#aaa'; ctx.lineWidth = 0.5;
+                ctx.beginPath(); ctx.moveTo(4.5, -4); ctx.lineTo(2, 0); ctx.lineTo(4.5, 3); ctx.stroke();
+            } else if (elf.role === 'mage') {
+                ctx.fillStyle = '#5a3a1a';
+                ctx.fillRect(4, -1, 2, 8);
+                ctx.fillStyle = '#aa44ff';
+                ctx.globalAlpha = 0.7 + Math.sin(performance.now() / 150) * 0.3;
+                ctx.fillRect(3, -4, 4, 4);
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#dda0ff';
+                ctx.fillRect(4, -3, 2, 2);
+                // Magic sparks when shooting
+                if (elf.shootCooldown > elf.shootRate * 0.7) {
+                    ctx.fillStyle = '#aa44ff';
+                    ctx.globalAlpha = 0.5;
+                    const sp = performance.now() / 100;
+                    ctx.fillRect(4 + Math.cos(sp) * 5, -3 + Math.sin(sp) * 5, 2, 2);
+                    ctx.fillRect(4 + Math.cos(sp + 2) * 5, -3 + Math.sin(sp + 2) * 5, 2, 2);
+                    ctx.globalAlpha = 1;
+                }
+            }
+            ctx.restore();
+
+            // Head (lower position)
+            ctx.fillStyle = '#c8e6c9';
+            ctx.fillRect(ex - 2, ey - 6, 4, 4);
+            ctx.fillRect(ex - 3, ey - 5, 1, 2);
+            ctx.fillRect(ex + 2, ey - 5, 1, 2);
+            // Focused eyes
+            const eyeColor = elf.role === 'mage' ? '#aa44ff' : tier >= 3 ? '#00ff88' : '#111';
+            ctx.fillStyle = eyeColor;
+            const eDx = Math.cos(elf.targetAngle) * 1;
+            ctx.fillRect(ex - 1 + eDx, ey - 5, 1, 1); ctx.fillRect(ex + 1 + eDx, ey - 5, 1, 1);
+            // Squinting eyebrows
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(ex - 2, ey - 6, 2, 1); ctx.fillRect(ex + 1, ey - 6, 2, 1);
+
+        } else {
+            // === STANDING / RUNNING POSE ===
+            // Boots
+            ctx.fillStyle = '#2a1a0a';
+            ctx.fillRect(ex - 2, ey + 2 + runCycle * 0.5, 2, 2);
+            ctx.fillRect(ex, ey + 2 - runCycle * 0.5, 2, 2);
+            // Legs
+            ctx.fillStyle = '#2d5a1e';
+            ctx.fillRect(ex - 2, ey + 1, 2, 2); ctx.fillRect(ex, ey + 1, 2, 2);
+            // Body
+            ctx.fillStyle = bodyColor;
+            ctx.fillRect(ex - 3, ey - 4, 6, 6);
+            // Body shading
+            ctx.fillStyle = 'rgba(0,0,0,0.08)';
+            ctx.fillRect(ex - 3, ey - 4, 2, 6);
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.fillRect(ex + 1, ey - 3, 2, 4);
+            // Belt
+            ctx.fillStyle = '#5a3a1a'; ctx.fillRect(ex - 3, ey, 6, 1);
+            ctx.fillStyle = tier >= 2 ? '#f1c40f' : '#888'; ctx.fillRect(ex - 1, ey, 2, 1);
+
+            // Arm + weapon
+            ctx.save();
+            ctx.translate(ex + faceDir * 2, ey - 2);
+            ctx.rotate(aimAngle - Math.PI * 0.3);
+            ctx.fillStyle = '#c8e6c9';
+            ctx.fillRect(0, -1, 4, 2);
+
+            if (elf.role === 'archer') {
+                ctx.fillStyle = '#6d4c22'; ctx.fillRect(3, -4, 1, 7);
+                ctx.fillStyle = '#aaa'; ctx.fillRect(3, -4, 0.5, 7);
+                ctx.fillStyle = '#888'; ctx.fillRect(2, -1, 6, 1);
+                ctx.fillStyle = '#c0392b'; ctx.fillRect(7, -1, 2, 1);
+            } else if (elf.role === 'mage') {
+                ctx.fillStyle = '#5a3a1a'; ctx.fillRect(3, -1, 2, 8);
+                ctx.fillStyle = '#aa44ff';
+                ctx.globalAlpha = 0.6 + Math.sin(performance.now() / 200) * 0.3;
+                ctx.fillRect(2, -4, 4, 4);
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#dda0ff'; ctx.fillRect(3, -3, 2, 2);
+            } else {
+                ctx.fillStyle = '#aaa'; ctx.fillRect(3, -1, 6, 1);
+                ctx.fillStyle = '#ddd'; ctx.fillRect(3, -1, 6, 0.5);
+                ctx.fillStyle = '#5a3a1a'; ctx.fillRect(2, -2, 2, 3);
+                if (tier >= 3) { ctx.fillStyle = '#00ff88'; ctx.globalAlpha = 0.5; ctx.fillRect(3, -2, 6, 3); ctx.globalAlpha = 1; }
+            }
+            ctx.restore();
+
+            // Head
+            ctx.fillStyle = '#c8e6c9';
+            ctx.fillRect(ex - 2, ey - 8, 4, 4);
+            ctx.fillRect(ex - 3, ey - 7, 1, 2);
+            ctx.fillRect(ex + 2, ey - 7, 1, 2);
+            // Face highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.fillRect(ex, ey - 7, 2, 2);
+            // Eyes
+            const eyeColor = elf.role === 'mage' ? '#aa44ff' : tier >= 3 ? '#00ff88' : '#111';
+            ctx.fillStyle = eyeColor;
+            ctx.fillRect(ex - 1, ey - 7, 1, 1); ctx.fillRect(ex + 1, ey - 7, 1, 1);
+        }
+
+        // Hat (always shown, adjusts for crouch)
+        const hatY = isCrouch ? ey - 8 : ey - 10;
+        const hatColor = elf.role === 'mage' ? (tier >= 3 ? '#aa44ff' : '#4a1a7a')
+            : elf.role === 'archer' ? (tier >= 3 ? '#88ff44' : '#3a5c1a')
+            : (tier >= 3 ? '#00ff88' : tier >= 2 ? '#1b5e20' : '#2e7d32');
+        ctx.fillStyle = hatColor;
+        ctx.fillRect(ex - 2, hatY, 4, 2);
+        ctx.fillRect(ex - 1, hatY - 2, 2, 2);
+        ctx.fillRect(ex, hatY - 3, 1, 2);
+        if (elf.role === 'mage') {
+            ctx.fillRect(ex - 1, hatY - 4, 2, 2);
+            ctx.fillRect(ex, hatY - 5, 1, 1);
+        }
+        ctx.fillStyle = tier >= 2 ? '#f1c40f' : '#888';
+        ctx.fillRect(ex - 2, hatY, 4, 1);
+
+        // Role indicator for archers — quiver on back
+        if (elf.role === 'archer' && !isCrouch) {
+            ctx.fillStyle = '#5a3a1a';
+            ctx.fillRect(ex - faceDir * 3, ey - 3, 2, 5);
+            ctx.fillStyle = '#888';
+            ctx.fillRect(ex - faceDir * 3, ey - 4, 2, 1);
+            ctx.fillRect(ex - faceDir * 3 + 0.5, ey - 5, 1, 2);
+        }
+
+        // Glow for tier 3
+        if (tier >= 3) {
+            const glowC = elf.role === 'mage' ? '#aa44ff' : elf.role === 'archer' ? '#88ff44' : '#00ff88';
+            ctx.fillStyle = glowC;
+            ctx.globalAlpha = 0.12 + Math.sin(performance.now() / 200) * 0.06;
+            ctx.fillRect(ex - 6, ey - 10 + crouchY, 12, 16);
+            ctx.globalAlpha = 1;
+        }
+
+        if (isRetreat) ctx.globalAlpha = 1;
+    }
+}
+
+function renderBoostRanges() {
+    for (const t of towers) {
+        if (t.type === 'commander') {
+            const def = TOWER_DEFS.commander;
+            const boostRange = (def.boostRange || 100) * Math.pow(1.1, t.level - 1);
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, boostRange, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(241,196,15,0.04)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(241,196,15,0.15)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        if (t.type === 'dj') {
+            const def = TOWER_DEFS.dj;
+            const boostRange = (def.boostRange || 160) * Math.pow(1.1, t.level - 1);
+            // Pulsing pink aura
+            const pulse = Math.sin(performance.now() / 200) * 0.02;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, boostRange, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(233,30,99,${0.03 + pulse})`;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(233,30,99,0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+}
+
+function renderTowers() {
+    for (const t of towers) {
+        const def = TOWER_DEFS[t.type];
+        const skin = getSkinTier(t.type, t.level);
+        const tier = t.level >= 5 ? 3 : t.level >= 3 ? 2 : 1;
+        const glow = skin ? skin.glow : null;
+        const px = t.col * TILE, py = t.row * TILE;
+
+        // === BASE PLATFORM ===
+        // Dark ground pad under the tower
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+        // Platform
+        const platColor = tier >= 3 ? '#1a1a2a' : tier >= 2 ? '#1c2833' : '#222';
+        ctx.fillStyle = platColor;
+        ctx.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
+        // Platform border
+        ctx.strokeStyle = tier >= 3 ? (glow || '#555') : tier >= 2 ? '#444' : '#333';
+        ctx.globalAlpha = tier >= 3 ? 0.6 : 0.3;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 3, py + 3, TILE - 6, TILE - 6);
+        ctx.globalAlpha = 1;
+        // Corner bolts on platform
+        ctx.fillStyle = tier >= 2 ? '#666' : '#444';
+        ctx.fillRect(px + 4, py + 4, 2, 2);
+        ctx.fillRect(px + TILE - 6, py + 4, 2, 2);
+        ctx.fillRect(px + 4, py + TILE - 6, 2, 2);
+        ctx.fillRect(px + TILE - 6, py + TILE - 6, 2, 2);
+
+        // Tier 3 glow ring under tower
+        if (glow) {
+            ctx.beginPath();
+            ctx.arc(t.x, t.y + 2, 16, 0, Math.PI * 2);
+            ctx.fillStyle = glow;
+            ctx.globalAlpha = 0.06 + Math.sin(performance.now() / 400) * 0.03;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+
+        // === DRAW THE TOWER ===
+        drawPerson(t.x, t.y, t.angle, t.type, t.level, t.shootAnim);
+
+        // === DJ BOOST INDICATOR (music notes floating on boosted towers) ===
+        if (t.type !== 'dj' && t.type !== 'commander') {
+            let hasDJBoost = false;
+            for (const b of towers) {
+                if (b.type !== 'dj') continue;
+                const bDef = TOWER_DEFS.dj;
+                const bRange = (bDef.boostRange || 160) * Math.pow(1.1, b.level - 1);
+                const bdx = t.x - b.x, bdy = t.y - b.y;
+                if (Math.sqrt(bdx * bdx + bdy * bdy) <= bRange) { hasDJBoost = true; break; }
+            }
+            if (hasDJBoost) {
+                // Pink up-arrow and music note
+                const bTime = performance.now() / 600;
+                ctx.fillStyle = '#e91e63';
+                ctx.globalAlpha = 0.5 + Math.sin(bTime * 3) * 0.3;
+                ctx.font = '8px serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('♪', t.x + Math.sin(bTime) * 4, t.y - 20 + Math.cos(bTime) * 2);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // === SELECTION HIGHLIGHT ===
+        if (selectedTower === t) {
+            // Animated dashed border
+            ctx.setLineDash([4, 3]);
+            ctx.lineDashOffset = -performance.now() / 80;
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(px + 1, py + 1, TILE - 2, TILE - 2);
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+            // Corner brackets
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 2;
+            const bLen = 6;
+            // Top-left
+            ctx.beginPath(); ctx.moveTo(px, py + bLen); ctx.lineTo(px, py); ctx.lineTo(px + bLen, py); ctx.stroke();
+            // Top-right
+            ctx.beginPath(); ctx.moveTo(px + TILE - bLen, py); ctx.lineTo(px + TILE, py); ctx.lineTo(px + TILE, py + bLen); ctx.stroke();
+            // Bottom-left
+            ctx.beginPath(); ctx.moveTo(px, py + TILE - bLen); ctx.lineTo(px, py + TILE); ctx.lineTo(px + bLen, py + TILE); ctx.stroke();
+            // Bottom-right
+            ctx.beginPath(); ctx.moveTo(px + TILE - bLen, py + TILE); ctx.lineTo(px + TILE, py + TILE); ctx.lineTo(px + TILE, py + TILE - bLen); ctx.stroke();
+        }
+
+        // === LEVEL BADGE (small circle in corner) ===
+        if (t.level > 1) {
+            const badgeX = px + TILE - 8, badgeY = py + 8;
+            ctx.beginPath();
+            ctx.arc(badgeX, badgeY, 6, 0, Math.PI * 2);
+            ctx.fillStyle = tier >= 3 ? (glow || '#e74c3c') : tier >= 2 ? '#f39c12' : '#3498db';
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 8px "Courier New"';
+            ctx.textAlign = 'center';
+            ctx.fillText(t.level, badgeX, badgeY + 3);
+        }
+    }
+}
+
+function renderSelectedRange() {
+    if (selectedTower) {
+        const t = selectedTower;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2);
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(241,196,15,0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Gradient fill
+        const grad = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.range);
+        grad.addColorStop(0, 'rgba(241,196,15,0.08)');
+        grad.addColorStop(1, 'rgba(241,196,15,0)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+    }
+}
+
+function renderEnemies() {
+    for (const e of enemies) {
+        if (!e.alive) continue;
+
+        const nextPt = PATH[e.pathIdx + 1];
+        let facing = 0;
+        if (nextPt) facing = Math.atan2(nextPt.y - e.y, nextPt.x - e.x);
+
+        const isSlow = e.slowTimer > 0;
+        const ex = e.x, ey = e.y, sz = e.size;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath();
+        ctx.ellipse(ex + 1, ey + sz + 2, sz + 1, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Frost aura when slowed
+        if (isSlow) {
+            ctx.fillStyle = 'rgba(100,200,255,0.12)';
+            ctx.beginPath();
+            ctx.arc(ex, ey, sz + 6, 0, Math.PI * 2);
+            ctx.fill();
+            // Frost sparkles
+            ctx.fillStyle = '#aaddff';
+            ctx.globalAlpha = 0.4 + Math.sin(performance.now() / 100 + ex) * 0.3;
+            for (let fi = 0; fi < 3; fi++) {
+                const fa = performance.now() / 300 + fi * 2.1;
+                ctx.fillRect(ex + Math.cos(fa) * (sz + 4), ey + Math.sin(fa) * (sz + 4), 2, 2);
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        const skinTint = isSlow ? '#8ec8e8' : null;
+        const bodyTint = isSlow ? '#5dade2' : null;
+
+        if (e.type === 'megaboss') {
+            // === MEGABOSS: The Death King ===
+            const mb = performance.now() / 1000;
+            const pulse = Math.sin(mb * 3) * 2;
+
+            // Dark aura
+            ctx.fillStyle = '#ff0000';
+            ctx.globalAlpha = 0.06 + Math.sin(mb * 2) * 0.03;
+            ctx.beginPath(); ctx.arc(ex, ey - 5, 30, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Massive legs
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(ex - 10, ey + 6, 8, 10);
+            ctx.fillRect(ex + 2, ey + 6, 8, 10);
+            // Armored boots
+            ctx.fillStyle = '#333';
+            ctx.fillRect(ex - 11, ey + 14, 10, 3);
+            ctx.fillRect(ex + 1, ey + 14, 10, 3);
+
+            // Massive armored body
+            ctx.fillStyle = isSlow ? '#4a80aa' : '#2a0000';
+            ctx.fillRect(ex - sz, ey - 14, sz * 2, 22);
+            // Chest armor plates
+            ctx.fillStyle = isSlow ? '#5a90ba' : '#444';
+            ctx.fillRect(ex - sz + 2, ey - 12, sz * 2 - 4, 5);
+            ctx.fillRect(ex - sz + 2, ey - 4, sz * 2 - 4, 5);
+            ctx.fillStyle = isSlow ? '#6aa0ca' : '#555';
+            ctx.fillRect(ex - sz + 3, ey - 11, sz * 2 - 6, 3);
+            // Skull emblem (big)
+            ctx.fillStyle = '#ddd';
+            ctx.fillRect(ex - 5, ey - 10, 10, 7);
+            ctx.fillStyle = '#2a0000';
+            ctx.fillRect(ex - 3, ey - 9, 3, 3);
+            ctx.fillRect(ex + 1, ey - 9, 3, 3);
+            ctx.fillRect(ex - 2, ey - 5, 5, 2);
+
+            // Huge spiked shoulder pads
+            ctx.fillStyle = isSlow ? '#5a90ba' : '#333';
+            ctx.fillRect(ex - sz - 6, ey - 16, 8, 10);
+            ctx.fillRect(ex + sz - 2, ey - 16, 8, 10);
+            // Spikes
+            ctx.fillStyle = '#888';
+            ctx.fillRect(ex - sz - 5, ey - 20, 3, 5);
+            ctx.fillRect(ex - sz - 2, ey - 22, 3, 7);
+            ctx.fillRect(ex + sz, ey - 20, 3, 5);
+            ctx.fillRect(ex + sz + 3, ey - 22, 3, 7);
+
+            // Cape (flowing)
+            ctx.fillStyle = isSlow ? '#4a6080' : '#3a0000';
+            ctx.fillRect(ex - sz + 2, ey + 2, sz * 2 - 4, 10 + pulse);
+            ctx.fillStyle = isSlow ? '#3a5070' : '#200000';
+            ctx.fillRect(ex - sz + 4, ey + 4, sz * 2 - 8, 8 + pulse);
+
+            // Head (massive skull-like)
+            ctx.fillStyle = isSlow ? '#6aa0ca' : '#3a0a0a';
+            ctx.fillRect(ex - 10, ey - 28, 20, 16);
+            ctx.fillRect(ex - 8, ey - 14, 16, 3);
+            // Crown of fire
+            ctx.fillStyle = isSlow ? '#88ddff' : '#ff4400';
+            ctx.globalAlpha = 0.5 + Math.sin(mb * 6) * 0.3;
+            ctx.fillRect(ex - 12, ey - 34, 4, 7);
+            ctx.fillRect(ex - 7, ey - 36, 4, 9);
+            ctx.fillRect(ex - 2, ey - 38, 4, 11);
+            ctx.fillRect(ex + 3, ey - 36, 4, 9);
+            ctx.fillRect(ex + 8, ey - 34, 4, 7);
+            ctx.globalAlpha = 1;
+            // Flaming crown tips
+            ctx.fillStyle = isSlow ? '#aaeeff' : '#ff8800';
+            ctx.globalAlpha = 0.4 + Math.sin(mb * 8) * 0.3;
+            ctx.fillRect(ex - 6, ey - 38, 3, 4);
+            ctx.fillRect(ex - 1, ey - 40, 3, 4);
+            ctx.fillRect(ex + 4, ey - 38, 3, 4);
+            ctx.globalAlpha = 1;
+
+            // Giant horns (curved)
+            ctx.fillStyle = '#bbb';
+            ctx.fillRect(ex - 15, ey - 32, 5, 4);
+            ctx.fillRect(ex - 17, ey - 36, 4, 5);
+            ctx.fillRect(ex - 16, ey - 39, 3, 4);
+            ctx.fillRect(ex + 10, ey - 32, 5, 4);
+            ctx.fillRect(ex + 13, ey - 36, 4, 5);
+            ctx.fillRect(ex + 13, ey - 39, 3, 4);
+
+            // Glowing eyes (pulsing, terrifying)
+            ctx.fillStyle = isSlow ? '#88ddff' : '#ff0000';
+            ctx.globalAlpha = 0.6 + Math.sin(mb * 4) * 0.4;
+            ctx.fillRect(ex - 7, ey - 24, 5, 4);
+            ctx.fillRect(ex + 2, ey - 24, 5, 4);
+            ctx.globalAlpha = 1;
+            // Eye glow spill
+            ctx.fillStyle = isSlow ? '#88ddff' : '#ff0000';
+            ctx.globalAlpha = 0.15;
+            ctx.fillRect(ex - 9, ey - 26, 9, 8);
+            ctx.fillRect(ex, ey - 26, 9, 8);
+            ctx.globalAlpha = 1;
+            // Pupils
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(ex - 5, ey - 23, 2, 2);
+            ctx.fillRect(ex + 4, ey - 23, 2, 2);
+
+            // Fanged jaw
+            ctx.fillStyle = '#1a0000';
+            ctx.fillRect(ex - 6, ey - 18, 12, 5);
+            ctx.fillStyle = '#ddd';
+            ctx.fillRect(ex - 5, ey - 18, 2, 3);
+            ctx.fillRect(ex - 2, ey - 18, 2, 3);
+            ctx.fillRect(ex + 1, ey - 18, 2, 3);
+            ctx.fillRect(ex + 4, ey - 18, 2, 3);
+
+            // Giant weapon (war axe)
+            ctx.save();
+            ctx.translate(ex + sz + 4, ey - 8);
+            ctx.rotate(facing + 0.2 + Math.sin(mb * 2) * 0.1);
+            // Handle
+            ctx.fillStyle = '#5a3a1a';
+            ctx.fillRect(0, -2, 22, 3);
+            // Axe head
+            ctx.fillStyle = '#888';
+            ctx.fillRect(18, -8, 6, 14);
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(19, -7, 4, 12);
+            ctx.fillStyle = '#ccc';
+            ctx.fillRect(22, -6, 2, 10);
+            // Blood on blade
+            ctx.fillStyle = '#880000';
+            ctx.fillRect(20, -5, 3, 3);
+            ctx.fillRect(21, 3, 2, 3);
+            ctx.restore();
+
+        } else if (e.type === 'boss') {
+            // === BOSS: Demon warlord ===
+            // Boots
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(ex - 8, ey + 8, 6, 5);
+            ctx.fillRect(ex + 2, ey + 8, 6, 5);
+            // Legs (armored)
+            ctx.fillStyle = bodyTint || '#4a0e0e';
+            ctx.fillRect(ex - 7, ey + 2, 5, 7);
+            ctx.fillRect(ex + 2, ey + 2, 5, 7);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(ex - 7, ey + 4, 5, 2); // knee guard
+            ctx.fillRect(ex + 2, ey + 4, 5, 2);
+            // Torso (massive armored)
+            ctx.fillStyle = bodyTint || '#6b0f0f';
+            ctx.fillRect(ex - sz, ey - 10, sz * 2, 14);
+            // Chest plate
+            ctx.fillStyle = bodyTint || '#333';
+            ctx.fillRect(ex - sz + 2, ey - 8, sz * 2 - 4, 10);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(ex - sz + 3, ey - 7, sz * 2 - 6, 2);
+            ctx.fillRect(ex - sz + 3, ey - 3, sz * 2 - 6, 2);
+            // Skull emblem on chest
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(ex - 3, ey - 6, 6, 4);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(ex - 2, ey - 5, 2, 2);
+            ctx.fillRect(ex + 1, ey - 5, 2, 2);
+            // Shoulders (spiked pauldrons)
+            ctx.fillStyle = bodyTint || '#444';
+            ctx.fillRect(ex - sz - 3, ey - 10, 5, 6);
+            ctx.fillRect(ex + sz - 2, ey - 10, 5, 6);
+            ctx.fillStyle = '#666';
+            ctx.fillRect(ex - sz - 2, ey - 12, 3, 3); // spike
+            ctx.fillRect(ex + sz - 1, ey - 12, 3, 3);
+            // Head
+            ctx.fillStyle = skinTint || '#5a1010';
+            ctx.fillRect(ex - 7, ey - 20, 14, 11);
+            ctx.fillRect(ex - 6, ey - 10, 12, 2);
+            // Horns (curved)
+            ctx.fillStyle = '#ccc';
+            ctx.fillRect(ex - 11, ey - 24, 4, 3);
+            ctx.fillRect(ex - 12, ey - 26, 3, 4);
+            ctx.fillRect(ex - 11, ey - 28, 2, 3);
+            ctx.fillRect(ex + 7, ey - 24, 4, 3);
+            ctx.fillRect(ex + 9, ey - 26, 3, 4);
+            ctx.fillRect(ex + 9, ey - 28, 2, 3);
+            // Glowing eyes
+            ctx.fillStyle = isSlow ? '#88ddff' : '#ff4400';
+            ctx.globalAlpha = 0.6 + Math.sin(performance.now() / 150) * 0.3;
+            ctx.fillRect(ex - 5, ey - 17, 4, 3);
+            ctx.fillRect(ex + 1, ey - 17, 4, 3);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(ex - 4, ey - 16, 2, 2);
+            ctx.fillRect(ex + 2, ey - 16, 2, 2);
+            // Fanged mouth
+            ctx.fillStyle = '#200';
+            ctx.fillRect(ex - 4, ey - 13, 8, 3);
+            ctx.fillStyle = '#ddd';
+            ctx.fillRect(ex - 3, ey - 13, 2, 2);
+            ctx.fillRect(ex + 1, ey - 13, 2, 2);
+            // Weapon arm (big sword)
+            ctx.save();
+            ctx.translate(ex + sz, ey - 4);
+            ctx.rotate(facing + 0.3);
+            ctx.fillStyle = '#888';
+            ctx.fillRect(0, -2, 16, 3);
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(0, -2, 16, 1);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(-2, -3, 4, 5);
+            ctx.restore();
+
+        } else if (e.type === 'tank') {
+            // === TANK: Heavy armored soldier ===
+            // Boots
+            ctx.fillStyle = '#222';
+            ctx.fillRect(ex - 5, ey + 6, 4, 4);
+            ctx.fillRect(ex + 1, ey + 6, 4, 4);
+            // Legs
+            ctx.fillStyle = bodyTint || '#3d2866';
+            ctx.fillRect(ex - 5, ey + 1, 4, 6);
+            ctx.fillRect(ex + 1, ey + 1, 4, 6);
+            // Body (bulky armor)
+            ctx.fillStyle = bodyTint || '#4a2878';
+            ctx.fillRect(ex - sz, ey - 7, sz * 2, 10);
+            // Plate armor
+            ctx.fillStyle = bodyTint || '#666';
+            ctx.fillRect(ex - sz + 1, ey - 6, sz * 2 - 2, 8);
+            ctx.fillStyle = '#777';
+            ctx.fillRect(ex - sz + 2, ey - 5, sz * 2 - 4, 2);
+            // Shield (on left side)
+            ctx.save();
+            ctx.translate(ex - sz - 1, ey - 6);
+            ctx.fillStyle = bodyTint || '#888';
+            ctx.fillRect(-2, -2, 5, 14);
+            ctx.fillStyle = '#999';
+            ctx.fillRect(-1, -1, 3, 12);
+            ctx.fillStyle = bodyTint || '#4a2878';
+            ctx.fillRect(0, 2, 2, 3); // shield emblem
+            ctx.fillRect(-1, 4, 4, 2);
+            ctx.restore();
+            // Head with full helmet
+            ctx.fillStyle = skinTint || '#d4a574';
+            ctx.fillRect(ex - 4, ey - 14, 8, 8);
+            // Helmet (face guard)
+            ctx.fillStyle = bodyTint || '#555';
+            ctx.fillRect(ex - 6, ey - 17, 12, 5);
+            ctx.fillRect(ex - 5, ey - 14, 10, 3);
+            // Visor slit
+            ctx.fillStyle = '#222';
+            ctx.fillRect(ex - 4, ey - 13, 8, 2);
+            // Eyes behind visor
+            ctx.fillStyle = isSlow ? '#88ddff' : '#fff';
+            ctx.fillRect(ex - 3, ey - 13, 2, 1);
+            ctx.fillRect(ex + 1, ey - 13, 2, 1);
+            // Helmet crest
+            ctx.fillStyle = bodyTint || '#666';
+            ctx.fillRect(ex - 1, ey - 19, 2, 3);
+
+        } else if (e.type === 'fast') {
+            // === FAST: Nimble scout/runner ===
+            // Thin legs (running pose)
+            ctx.fillStyle = '#333';
+            ctx.fillRect(ex - 3, ey + 1, 2, 5);
+            ctx.fillRect(ex + 1, ey + 1, 2, 5);
+            // Small boots
+            ctx.fillStyle = '#222';
+            ctx.fillRect(ex - 3, ey + 5, 3, 2);
+            ctx.fillRect(ex + 1, ey + 5, 3, 2);
+            // Slim torso
+            ctx.fillStyle = bodyTint || '#b8860b';
+            ctx.fillRect(ex - sz, ey - 5, sz * 2, 7);
+            // Leather vest
+            ctx.fillStyle = bodyTint || '#8B6914';
+            ctx.fillRect(ex - sz + 1, ey - 4, sz * 2 - 2, 5);
+            // Belt with dagger
+            ctx.fillStyle = '#555';
+            ctx.fillRect(ex - sz, ey + 1, sz * 2, 1);
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(ex + sz - 3, ey - 1, 1, 4); // dagger
+            // Head (thin)
+            ctx.fillStyle = skinTint || '#e8c89e';
+            ctx.fillRect(ex - 3, ey - 11, 6, 7);
+            // Eyes (wide, alert)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(ex - 2, ey - 9, 1, 2);
+            ctx.fillRect(ex + 1, ey - 9, 1, 2);
+            // Hood/bandana
+            ctx.fillStyle = bodyTint || '#996515';
+            ctx.fillRect(ex - 4, ey - 13, 8, 3);
+            ctx.fillRect(ex - 3, ey - 14, 6, 2);
+            // Scarf trailing
+            ctx.fillStyle = bodyTint || '#c8a020';
+            ctx.fillRect(ex + 3, ey - 11, 3, 1);
+            ctx.fillRect(ex + 4, ey - 10, 3, 1);
+
+        } else {
+            // === BASIC: Zombie/undead soldier ===
+            // Boots (worn)
+            ctx.fillStyle = '#2a2a1a';
+            ctx.fillRect(ex - 4, ey + 6, 3, 3);
+            ctx.fillRect(ex + 1, ey + 6, 3, 3);
+            // Legs (tattered)
+            ctx.fillStyle = bodyTint || '#4a3a2a';
+            ctx.fillRect(ex - 4, ey + 1, 3, 6);
+            ctx.fillRect(ex + 1, ey + 1, 3, 6);
+            // Torso (torn uniform)
+            ctx.fillStyle = bodyTint || '#7a3030';
+            ctx.fillRect(ex - sz, ey - 6, sz * 2, 9);
+            // Torn details
+            ctx.fillStyle = bodyTint || '#5a2020';
+            ctx.fillRect(ex - sz, ey - 4, 3, 4);
+            ctx.fillRect(ex + sz - 3, ey - 2, 3, 3);
+            // Exposed ribs hint
+            ctx.fillStyle = 'rgba(200,180,160,0.2)';
+            ctx.fillRect(ex - 3, ey - 4, 1, 3);
+            ctx.fillRect(ex - 1, ey - 4, 1, 3);
+            ctx.fillRect(ex + 1, ey - 4, 1, 3);
+            // Head (decayed skin)
+            ctx.fillStyle = skinTint || '#8a9a6a';
+            ctx.fillRect(ex - 5, ey - 14, 10, 9);
+            ctx.fillRect(ex - 4, ey - 6, 8, 2);
+            // Sunken eyes
+            ctx.fillStyle = '#222';
+            ctx.fillRect(ex - 4, ey - 12, 3, 3);
+            ctx.fillRect(ex + 1, ey - 12, 3, 3);
+            ctx.fillStyle = isSlow ? '#88ddff' : '#cc2200';
+            ctx.fillRect(ex - 3, ey - 11, 2, 2);
+            ctx.fillRect(ex + 1, ey - 11, 2, 2);
+            // Jaw / open mouth
+            ctx.fillStyle = '#1a0000';
+            ctx.fillRect(ex - 3, ey - 8, 6, 3);
+            // Teeth
+            ctx.fillStyle = '#ccc';
+            ctx.fillRect(ex - 2, ey - 8, 1, 1);
+            ctx.fillRect(ex, ey - 8, 1, 1);
+            ctx.fillRect(ex + 2, ey - 8, 1, 1);
+            // Outstretched arm
+            ctx.save();
+            ctx.translate(ex + sz, ey - 2);
+            ctx.rotate(facing);
+            ctx.fillStyle = skinTint || '#8a9a6a';
+            ctx.fillRect(0, -2, 8, 3);
+            ctx.fillRect(7, -2, 3, 3);
+            ctx.restore();
+        }
+
+        // Frost effect overlay
+        if (isSlow) {
+            ctx.fillStyle = 'rgba(100,200,255,0.15)';
+            ctx.fillRect(ex - sz - 2, ey - (e.type === 'megaboss' ? 38 : e.type === 'boss' ? 28 : 16), sz * 2 + 4, sz * 2 + (e.type === 'megaboss' ? 50 : e.type === 'boss' ? 36 : 24));
+        }
+
+        // HP bar — polished with outline and glow on low HP
+        if (e.hp < e.maxHp) {
+            const bw = Math.max(sz * 2.5, 18);
+            const bh = 4;
+            const by = ey - (e.type === 'megaboss' ? 44 : e.type === 'boss' ? 34 : e.type === 'tank' ? 24 : 18);
+            const bx = ex - bw / 2;
+            const pct = Math.max(0, e.hp / e.maxHp);
+            // Background
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(bx, by, bw, bh);
+            // HP fill
+            const hpColor = pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f39c12' : '#e74c3c';
+            ctx.fillStyle = hpColor;
+            ctx.fillRect(bx, by, bw * pct, bh);
+            // Highlight on top of HP bar
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(bx, by, bw * pct, 1);
+            // Pulse glow when low HP
+            if (pct < 0.25) {
+                ctx.fillStyle = '#e74c3c';
+                ctx.globalAlpha = 0.15 + Math.sin(performance.now() / 150) * 0.1;
+                ctx.fillRect(bx - 2, by - 2, bw * pct + 4, bh + 4);
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+}
+
+function renderProjectiles() {
+    for (const p of projectiles) {
+        if (!p.alive) continue;
+        if (p.towerType === 'rocketeer') {
+            // Rocket with trail
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(p.x - 3, p.y - 2, 6, 4);
+            ctx.fillStyle = '#f39c12';
+            ctx.fillRect(p.x - 5, p.y - 1, 3, 2);
+        } else if (p.towerType === 'frost') {
+            // Ice bolt
+            ctx.fillStyle = '#00ffdd';
+            ctx.globalAlpha = 0.8;
+            ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
+            ctx.globalAlpha = 1;
+        } else if (p.towerType === 'sniper') {
+            // Tracer round
+            ctx.fillStyle = '#d8b4fe';
+            ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+            ctx.fillStyle = 'rgba(216,180,254,0.3)';
+            ctx.fillRect(p.x - 3, p.y - 3, 7, 7);
+        } else if (p.towerType === 'tank') {
+            // Tank shell
+            ctx.fillStyle = '#8B7355';
+            ctx.fillRect(p.x - 3, p.y - 2, 6, 4);
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(p.x + 2, p.y - 1, 3, 2);
+            // Trail
+            ctx.fillStyle = 'rgba(100,100,80,0.3)';
+            ctx.fillRect(p.x - 6, p.y - 1, 4, 2);
+        } else if (p.towerType === 'heli') {
+            // Missile
+            ctx.fillStyle = '#555';
+            ctx.fillRect(p.x - 2, p.y - 1, 6, 2);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(p.x + 3, p.y - 1, 2, 2);
+            // Smoke trail
+            ctx.fillStyle = 'rgba(200,200,200,0.3)';
+            ctx.fillRect(p.x - 5, p.y, 4, 1);
+        } else if (p.towerType === 'shotgunner') {
+            // Shotgun pellet
+            ctx.fillStyle = '#d35400';
+            ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+        } else if (p.towerType === 'milbase') {
+            // Mini shell
+            ctx.fillStyle = '#ff8844';
+            ctx.fillRect(p.x - 2, p.y - 1, 4, 2);
+            ctx.fillStyle = '#ffaa66';
+            ctx.fillRect(p.x - 1, p.y - 1, 2, 1);
+        } else if (p.towerType === 'elfhut') {
+            // Tiny bolt — color varies by source
+            ctx.fillStyle = p.color || '#2ecc71';
+            ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+            ctx.fillStyle = p.color ? p.color + '44' : 'rgba(46,204,113,0.3)';
+            ctx.fillRect(p.x - 2, p.y - 2, 5, 5);
+        } else if (p.towerType === 'jet' || p.towerType === 'plane') {
+            // Bomb
+            ctx.fillStyle = '#333';
+            ctx.fillRect(p.x - 3, p.y - 4, 6, 8);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(p.x - 2, p.y - 3, 4, 6);
+            ctx.fillStyle = '#444';
+            ctx.fillRect(p.x - 5, p.y + 2, 10, 2);
+            ctx.fillStyle = '#c0392b';
+            ctx.fillRect(p.x - 2, p.y - 5, 4, 2);
+        } else {
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        }
+    }
+}
+
+function renderParticles() {
+    for (const p of particles) {
+        const alpha = Math.max(0, p.life / p.maxLife);
+        ctx.globalAlpha = alpha;
+        if (p.ptype === 'smoke') {
+            const sz = p.size * (2 - alpha);
+            ctx.fillStyle = 'rgba(120,120,120,0.3)';
+            ctx.fillRect(p.x - sz, p.y - sz, sz * 2, sz * 2);
+        } else if (p.ptype === 'spark') {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(p.x - 0.5, p.y - 0.5, 1.5, 1.5);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+        } else {
+            const sz = p.size * alpha;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - sz / 2, p.y - sz / 2, sz, sz);
+        }
+    }
+    ctx.globalAlpha = 1;
+}
+
+function renderHoverPreview() {
+    if (!selectedTowerType || hoverCol < 0 || hoverRow < 0) return;
+    const def = TOWER_DEFS[selectedTowerType];
+    const x = hoverCol * TILE + TILE / 2;
+    const y = hoverRow * TILE + TILE / 2;
+    const valid = canPlace(hoverCol, hoverRow) && money >= def.cost;
+
+    // Range circle with gradient
+    if (def.range > 0) {
+        ctx.beginPath();
+        ctx.arc(x, y, def.range, 0, Math.PI * 2);
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = valid ? 'rgba(46,204,113,0.4)' : 'rgba(231,76,60,0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, def.range);
+        grad.addColorStop(0, valid ? 'rgba(46,204,113,0.08)' : 'rgba(231,76,60,0.08)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+    }
+
+    // Tile highlight
+    ctx.fillStyle = valid ? 'rgba(46,204,113,0.15)' : 'rgba(231,76,60,0.15)';
+    ctx.fillRect(hoverCol * TILE, hoverRow * TILE, TILE, TILE);
+    ctx.strokeStyle = valid ? 'rgba(46,204,113,0.5)' : 'rgba(231,76,60,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(hoverCol * TILE + 1, hoverRow * TILE + 1, TILE - 2, TILE - 2);
+
+    // Ghost preview
+    ctx.globalAlpha = 0.4;
+    drawPerson(x, y, 0, selectedTowerType, 1, 0);
+    ctx.globalAlpha = 1;
+
+    if (!valid) {
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(hoverCol * TILE + 8, hoverRow * TILE + 8);
+        ctx.lineTo(hoverCol * TILE + TILE - 8, hoverRow * TILE + TILE - 8);
+        ctx.moveTo(hoverCol * TILE + TILE - 8, hoverRow * TILE + 8);
+        ctx.lineTo(hoverCol * TILE + 8, hoverRow * TILE + TILE - 8);
+        ctx.stroke();
+    }
+}
+
+function renderGameOver() {
+    // Animated dark overlay
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Vignette effect
+    const vignette = ctx.createRadialGradient(
+        canvas.width/2, canvas.height/2, canvas.height * 0.2,
+        canvas.width/2, canvas.height/2, canvas.height * 0.8
+    );
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.textAlign = 'center';
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const won = lives > 0;
+
+    // Glowing title
+    ctx.font = 'bold 52px "Courier New"';
+    const titleColor = won ? '#2ecc71' : '#e74c3c';
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillText(won ? 'VICTORY!' : 'GAME OVER', cx + 3, cy - 68);
+    // Glow
+    ctx.fillStyle = titleColor;
+    ctx.shadowColor = titleColor;
+    ctx.shadowBlur = 20;
+    ctx.fillText(won ? 'VICTORY!' : 'GAME OVER', cx, cy - 70);
+    ctx.shadowBlur = 0;
+
+    // Difficulty badge
+    const diffColors = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', impossible: '#9b59b6' };
+    ctx.font = 'bold 14px "Courier New"';
+    ctx.fillStyle = diffColors[selectedDifficulty] || '#aaa';
+    ctx.fillText(selectedDifficulty.toUpperCase(), cx, cy - 42);
+
+    // Divider line
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(cx - 100, cy - 32, 200, 1);
+
+    // Stats
+    ctx.font = '20px "Courier New"';
+    ctx.fillStyle = '#ecf0f1';
+    ctx.fillText(`Score: ${score}`, cx, cy - 10);
+    ctx.font = '16px "Courier New"';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(`Wave ${wave} / ${totalWaves}`, cx, cy + 14);
+
+    // Coins earned with glow
+    ctx.font = 'bold 20px "Courier New"';
+    ctx.fillStyle = '#f1c40f';
+    ctx.shadowColor = '#f1c40f';
+    ctx.shadowBlur = 10;
+    ctx.fillText(`+${earnedCoins} coins`, cx, cy + 44);
+    ctx.shadowBlur = 0;
+
+    if (score >= highScore && score > 0) {
+        ctx.font = 'bold 14px "Courier New"';
+        ctx.fillStyle = '#f1c40f';
+        const pulse = 0.7 + Math.sin(performance.now() / 200) * 0.3;
+        ctx.globalAlpha = pulse;
+        ctx.fillText('★ NEW HIGH SCORE ★', cx, cy + 68);
+        ctx.globalAlpha = 1;
+    }
+
+    ctx.font = '13px "Courier New"';
+    ctx.fillStyle = '#666';
+    ctx.fillText(`Best: ${highScore}  |  Total Coins: ${coins}`, cx, cy + 88);
+
+    // Click prompt
+    const alpha = 0.4 + Math.sin(performance.now() / 300) * 0.4;
+    ctx.globalAlpha = alpha;
+    ctx.font = '16px "Courier New"';
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillText('[ CLICK FOR MENU ]', cx, cy + 120);
+    ctx.globalAlpha = 1;
+}
+
+// ============================================================
+//  UI
+// ============================================================
+function updateUI() {
+    document.getElementById('ui-money').textContent = '$' + money;
+    document.getElementById('ui-lives').textContent = lives;
+    document.getElementById('ui-wave').textContent = `${wave} / ${totalWaves}`;
+    document.getElementById('ui-score').textContent = score;
+    const spawnerCount = towers.filter(t => t.type === 'elfhut' || t.type === 'milbase').length;
+    const spawnerFull = !ownerMode && spawnerCount >= SPAWNER_LIMIT;
+    const spawnerRow = document.getElementById('spawner-row');
+    if (ownerMode) {
+        spawnerRow.style.display = 'none';
+    } else {
+        spawnerRow.style.display = '';
+        document.getElementById('ui-spawners').textContent = `${spawnerCount} / ${SPAWNER_LIMIT}`;
+        document.getElementById('ui-spawners').style.color = spawnerFull ? '#e74c3c' : '#2ecc71';
+    }
+    for (const key of Object.keys(TOWER_DEFS)) {
+        const el = document.getElementById('btn-' + key);
+        if (!el) continue;
+        if (!ownerMode && !unlockedTowers.includes(key)) {
+            el.disabled = true;
+        } else if (spawnerFull && (key === 'elfhut' || key === 'milbase')) {
+            el.disabled = true;
+        } else {
+            el.disabled = money < TOWER_DEFS[key].cost;
+        }
+    }
+    if (selectedTower) updateTowerInfo();
+}
+
+// ============================================================
+//  RESET
+// ============================================================
+function resetGame() {
+    money = 100; lives = 20; score = 0; wave = 0;
+    waveActive = false; gameOver = false;
+    towers = []; enemies = []; projectiles = []; particles = []; elves = [];
+    spawnQueue = []; selectedTowerType = null; selectedTower = null; gameSpeed = 1;
+    document.getElementById('speed-btn').textContent = '1x';
+    document.getElementById('speed-btn').className = '';
+    document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('tower-info').classList.remove('active');
+    document.getElementById('wave-btn').disabled = false;
+    document.getElementById('wave-btn').textContent = 'Start Wave 1';
+    updateUI();
+}
+
+function tryOwnerCode() {
+    const code = document.getElementById('owner-code').value;
+    const status = document.getElementById('owner-status');
+    if (code === 'ben') {
+        ownerMode = true;
+        status.style.color = '#2ecc71';
+        status.textContent = 'Owner mode activated! Press PLAY to test.';
+        document.getElementById('owner-code').value = '';
+    } else {
+        ownerMode = false;
+        status.style.color = '#e74c3c';
+        status.textContent = 'Wrong code.';
+    }
+}
+window.tryOwnerCode = tryOwnerCode;
+
+function startGame() {
+    clearSave();
+    difficultyConfig = DIFFICULTIES[selectedDifficulty];
+    totalWaves = difficultyConfig.waves;
+    gameState = 'playing';
+    document.getElementById('menu-overlay').classList.add('hidden');
+    document.getElementById('sidebar').classList.remove('hidden');
+    resetGame();
+    // Apply difficulty
+    money = ownerMode ? 999999 : difficultyConfig.startMoney;
+    lives = ownerMode ? 9999 : difficultyConfig.lives;
+    // In owner mode, unlock all towers for this game
+    for (const key of Object.keys(TOWER_DEFS)) {
+        const btn = document.getElementById('btn-' + key);
+        if (!btn) continue;
+        if (ownerMode || unlockedTowers.includes(key)) {
+            btn.classList.remove('locked');
+            btn.title = '';
+        } else {
+            btn.classList.add('locked');
+            btn.disabled = true;
+            btn.title = 'Unlock in Shop';
+        }
+    }
+    updateUI();
+}
+window.startGame = startGame;
+
+let earnedCoins = 0;
+function endGame(won) {
+    gameOver = true;
+    gameState = 'gameover';
+    if (!ownerMode && score > highScore) { highScore = score; localStorage.setItem('rfd_td_highscore', highScore.toString()); }
+    // Award coins (0 in owner mode)
+    if (ownerMode) {
+        earnedCoins = 0;
+    } else if (won) {
+        earnedCoins = difficultyConfig.coins;
+    } else {
+        earnedCoins = Math.floor(wave * 2);
+    }
+    coins += earnedCoins;
+    saveCoins();
+    clearSave();
+}
+
+function saveGameState() {
+    const state = {
+        money, lives, score, wave, waveActive,
+        selectedDifficulty, totalWaves,
+        towers: towers.map(t => ({
+            type: t.type, col: t.col, row: t.row,
+            damage: t.damage, range: t.range, fireRate: t.fireRate,
+            splash: t.splash, slow: t.slow, slowDur: t.slowDur,
+            level: t.level,
+        })),
+    };
+    localStorage.setItem('rfd_td_save', JSON.stringify(state));
+}
+
+function loadGameState() {
+    const raw = localStorage.getItem('rfd_td_save');
+    if (!raw) return false;
+    try {
+        const state = JSON.parse(raw);
+        selectedDifficulty = state.selectedDifficulty || 'easy';
+        difficultyConfig = DIFFICULTIES[selectedDifficulty];
+        totalWaves = state.totalWaves || difficultyConfig.waves;
+        money = state.money;
+        lives = state.lives;
+        score = state.score;
+        wave = state.wave;
+        gameOver = false;
+        waveActive = false;
+        enemies = []; projectiles = []; particles = []; spawnQueue = []; elves = [];
+        towers = [];
+        for (const t of state.towers) {
+            towers.push({
+                type: t.type, col: t.col, row: t.row,
+                x: t.col * TILE + TILE / 2,
+                y: t.row * TILE + TILE / 2,
+                damage: t.damage, range: t.range, fireRate: t.fireRate,
+                splash: t.splash, slow: t.slow || 0, slowDur: t.slowDur || 0,
+                cooldown: 0, level: t.level, angle: 0, target: null, shootAnim: 0,
+            });
+        }
+        selectedTowerType = null; selectedTower = null;
+        document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('tower-info').classList.remove('active');
+        document.getElementById('wave-btn').disabled = false;
+        document.getElementById('wave-btn').textContent = wave < totalWaves ? `Start Wave ${wave + 1}` : 'All waves done!';
+        // Lock/unlock tower buttons
+        for (const key of Object.keys(TOWER_DEFS)) {
+            const btn = document.getElementById('btn-' + key);
+            if (!btn) continue;
+            if (!unlockedTowers.includes(key)) {
+                btn.classList.add('locked'); btn.disabled = true; btn.title = 'Unlock in Shop';
+            } else {
+                btn.classList.remove('locked'); btn.title = '';
+            }
+        }
+        updateUI();
+        return true;
+    } catch(e) {
+        return false;
+    }
+}
+
+function clearSave() {
+    localStorage.removeItem('rfd_td_save');
+}
+
+function continueGame() {
+    gameState = 'playing';
+    document.getElementById('menu-overlay').classList.add('hidden');
+    document.getElementById('sidebar').classList.remove('hidden');
+    loadGameState();
+}
+window.continueGame = continueGame;
+
+function saveAndNotify() {
+    saveGameState();
+    // Flash the save button green briefly
+    const btn = document.getElementById('save-btn');
+    btn.textContent = 'Saved!';
+    btn.style.background = '#27ae60';
+    setTimeout(() => { btn.textContent = 'Save Game'; btn.style.background = '#2980b9'; }, 1200);
+}
+window.saveAndNotify = saveAndNotify;
+
+function confirmNewGame() {
+    if (!confirm('Start a new game? All unsaved progress will be lost!')) return;
+    clearSave();
+    goToMenu();
+}
+window.confirmNewGame = confirmNewGame;
+
+function confirmMenu() {
+    if (wave > 0 && !gameOver) {
+        if (!confirm('Return to menu? Make sure to Save Game first!')) return;
+    }
+    if (score > highScore) { highScore = score; localStorage.setItem('rfd_td_highscore', highScore.toString()); }
+    goToMenu();
+}
+window.confirmMenu = confirmMenu;
+
+function goToMenu() {
+    gameState = 'menu';
+    gameOver = false;
+    document.getElementById('menu-overlay').classList.remove('hidden');
+    document.getElementById('sidebar').classList.add('hidden');
+    updateMenuCoins();
+    const hsEl = document.getElementById('menu-highscore');
+    if (highScore > 0) {
+        hsEl.textContent = `High Score: ${highScore}`;
+    } else {
+        hsEl.textContent = '';
+    }
+    // Show/hide continue button
+    const hasSave = localStorage.getItem('rfd_td_save') !== null;
+    document.getElementById('continue-btn').style.display = hasSave ? 'block' : 'none';
+    // Reset to play tab
+    showMenuTab('play');
+}
+
+// ============================================================
+//  MAIN LOOP
+// ============================================================
+let lastTime = 0;
+
+function toggleSpeed() {
+    if (gameSpeed === 1) { gameSpeed = 2; }
+    else if (gameSpeed === 2) { gameSpeed = 3; }
+    else { gameSpeed = 1; }
+    const btn = document.getElementById('speed-btn');
+    btn.textContent = gameSpeed + 'x';
+    btn.className = gameSpeed === 2 ? 'fast' : gameSpeed === 3 ? 'faster' : '';
+}
+window.toggleSpeed = toggleSpeed;
+
+function gameLoop(timestamp) {
+    try {
+        const rawDt = Math.min((timestamp - lastTime) / 1000, 0.05);
+        lastTime = timestamp;
+
+        if (gameState === 'playing' && !gameOver) {
+            const dt = Math.min(rawDt * gameSpeed, 0.1);
+            updateEnemies(dt);
+            updateTowers(dt);
+            updateProjectiles(dt);
+            updateParticles(dt);
+            updateElves(dt);
+            // Throttle UI to every 5 frames
+            if (!gameLoop._fc) gameLoop._fc = 0;
+            if (++gameLoop._fc % 5 === 0) updateUI();
+        }
+        if (gameState !== 'menu') {
+            render();
+        }
+    } catch (err) {
+        console.error('Game loop error:', err);
+    }
+    requestAnimationFrame(gameLoop);
+}
+
+// Start in menu state
+document.getElementById('sidebar').classList.add('hidden');
+updateMenuCoins();
+if (highScore > 0) {
+    document.getElementById('menu-highscore').textContent = `High Score: ${highScore}`;
+}
+const hasSave = localStorage.getItem('rfd_td_save') !== null;
+document.getElementById('continue-btn').style.display = hasSave ? 'block' : 'none';
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
