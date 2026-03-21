@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Run From Death - Tower Defense</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #0a0a1a; overflow: hidden; font-family: 'Courier New', monospace; display: flex; }
@@ -400,6 +403,23 @@ canvas { display: block; }
 }
 #upgrade-btn:hover { background: #3498db; }
 #upgrade-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+
+#auth-section { display: flex; align-items: center; gap: 10px; justify-content: center; min-height: 36px; }
+#google-signin-btn {
+    background: #1a1a2e; border: 2px solid #4285f4; color: #fff; padding: 8px 20px;
+    font-family: 'Courier New', monospace; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; transition: background 0.15s;
+}
+#google-signin-btn:hover { background: #16213e; border-color: #5a9bf4; }
+#auth-signed-in { display: flex; align-items: center; gap: 8px; }
+#auth-avatar { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #f1c40f; }
+#auth-name { color: #f1c40f; font-size: 13px; font-weight: bold; }
+#signout-btn {
+    background: none; border: 1px solid #555; color: #888; padding: 4px 10px;
+    font-family: 'Courier New', monospace; font-size: 11px; cursor: pointer;
+}
+#signout-btn:hover { border-color: #aaa; color: #ccc; }
+#cloud-status { color: #2ecc71; font-size: 11px; min-height: 16px; text-align: center; }
 </style>
 </head>
 <body>
@@ -409,6 +429,21 @@ canvas { display: block; }
         <h1 id="menu-title">RUN FROM DEATH</h1>
         <p id="menu-sub">Tower Defense</p>
         <p id="menu-coins"></p>
+
+        <div id="auth-section">
+            <div id="auth-signed-out">
+                <button id="google-signin-btn" onclick="signInWithGoogle()">
+                    <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    Sign in with Google
+                </button>
+            </div>
+            <div id="auth-signed-in" style="display:none">
+                <img id="auth-avatar" src="" alt="">
+                <span id="auth-name"></span>
+                <button id="signout-btn" onclick="signOutUser()">Sign Out</button>
+            </div>
+        </div>
+        <p id="cloud-status"></p>
 
         <div id="menu-nav">
             <button class="menu-nav-btn active" onclick="showMenuTab('play')">Play</button>
@@ -576,6 +611,134 @@ canvas { display: block; }
 </div>
 
 <script>
+// ============================================================
+//  FIREBASE INIT
+// ============================================================
+const firebaseConfig = {
+    apiKey: "AIzaSyCTqn-kA6SWOdkTbdH7sdatIK9MVegkzZc",
+    authDomain: "run-from-death-79bae.firebaseapp.com",
+    projectId: "run-from-death-79bae",
+    storageBucket: "run-from-death-79bae.firebasestorage.app",
+    messagingSenderId: "341622472371",
+    appId: "1:341622472371:web:083ee9d1e815859697bac6",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+let firebaseUser = null;
+
+// Try to enable offline persistence (fails silently if not supported)
+try { db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch(e) {}
+
+// ============================================================
+//  AUTH FUNCTIONS
+// ============================================================
+function signInWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(err => {
+        // If popup blocked, try redirect
+        if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+            auth.signInWithRedirect(provider);
+        }
+        console.error('Auth error:', err);
+    });
+}
+window.signInWithGoogle = signInWithGoogle;
+
+function signOutUser() {
+    auth.signOut();
+}
+window.signOutUser = signOutUser;
+
+function updateAuthUI() {
+    const signedOutEl = document.getElementById('auth-signed-out');
+    const signedInEl = document.getElementById('auth-signed-in');
+    if (!signedOutEl) return;
+    if (firebaseUser) {
+        signedOutEl.style.display = 'none';
+        signedInEl.style.display = 'flex';
+        document.getElementById('auth-name').textContent = firebaseUser.displayName || 'Player';
+        document.getElementById('auth-avatar').src = firebaseUser.photoURL || '';
+    } else {
+        signedOutEl.style.display = 'block';
+        signedInEl.style.display = 'none';
+    }
+}
+
+function showCloudStatus(msg) {
+    const el = document.getElementById('cloud-status');
+    if (el) { el.textContent = msg; setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000); }
+}
+
+// ============================================================
+//  CLOUD SAVE/LOAD
+// ============================================================
+let _cloudSaveTimer = null;
+function saveToCloud() {
+    if (!firebaseUser) return;
+    // Debounce — wait 1s before writing
+    clearTimeout(_cloudSaveTimer);
+    _cloudSaveTimer = setTimeout(() => {
+        const saveData = localStorage.getItem('rfd_td_save');
+        db.collection('players').doc(firebaseUser.uid).set({
+            coins: coins,
+            unlockedTowers: unlockedTowers,
+            highScore: highScore,
+            gameState: saveData ? JSON.parse(saveData) : null,
+        }, { merge: true }).then(() => {
+            showCloudStatus('☁ Saved to cloud');
+        }).catch(err => {
+            console.error('Cloud save error:', err);
+            showCloudStatus('☁ Save failed');
+        });
+    }, 1000);
+}
+
+function loadFromCloud() {
+    if (!firebaseUser) return Promise.resolve();
+    return db.collection('players').doc(firebaseUser.uid).get().then(doc => {
+        if (doc.exists) {
+            const data = doc.data();
+            coins = data.coins ?? coins;
+            unlockedTowers = data.unlockedTowers ?? unlockedTowers;
+            highScore = data.highScore ?? highScore;
+            // Sync to localStorage
+            localStorage.setItem('rfd_td_coins', coins.toString());
+            localStorage.setItem('rfd_td_unlocked', JSON.stringify(unlockedTowers));
+            localStorage.setItem('rfd_td_highscore', highScore.toString());
+            if (data.gameState) {
+                localStorage.setItem('rfd_td_save', JSON.stringify(data.gameState));
+            } else {
+                localStorage.removeItem('rfd_td_save');
+            }
+            showCloudStatus('☁ Loaded from cloud');
+        } else {
+            // First time sign-in — upload local data to cloud
+            saveToCloud();
+            showCloudStatus('☁ Synced to cloud');
+        }
+        // Refresh menu
+        updateMenuCoins();
+        const hsEl = document.getElementById('menu-highscore');
+        if (hsEl && highScore > 0) hsEl.textContent = `High Score: ${highScore}`;
+        const hasSave = localStorage.getItem('rfd_td_save') !== null;
+        const contBtn = document.getElementById('continue-btn');
+        if (contBtn) contBtn.style.display = hasSave ? 'block' : 'none';
+    }).catch(err => {
+        console.error('Cloud load error:', err);
+        showCloudStatus('☁ Load failed — using local data');
+    });
+}
+
+// Auth state listener
+auth.onAuthStateChanged(user => {
+    firebaseUser = user;
+    updateAuthUI();
+    if (user) {
+        loadFromCloud();
+    }
+});
+
 // ============================================================
 //  CONFIG
 // ============================================================
@@ -823,9 +986,11 @@ let difficultyConfig = DIFFICULTIES.easy;
 
 function saveCoins() {
     localStorage.setItem('rfd_td_coins', coins.toString());
+    saveToCloud();
 }
 function saveUnlocked() {
     localStorage.setItem('rfd_td_unlocked', JSON.stringify(unlockedTowers));
+    saveToCloud();
 }
 
 function selectDifficulty(diff) {
@@ -4624,7 +4789,7 @@ let earnedCoins = 0;
 function endGame(won) {
     gameOver = true;
     gameState = 'gameover';
-    if (!ownerMode && score > highScore) { highScore = score; localStorage.setItem('rfd_td_highscore', highScore.toString()); }
+    if (!ownerMode && score > highScore) { highScore = score; localStorage.setItem('rfd_td_highscore', highScore.toString()); saveToCloud(); }
     // Award coins (0 in owner mode)
     if (ownerMode) {
         earnedCoins = 0;
@@ -4650,6 +4815,7 @@ function saveGameState() {
         })),
     };
     localStorage.setItem('rfd_td_save', JSON.stringify(state));
+    saveToCloud();
 }
 
 function loadGameState() {
@@ -4702,6 +4868,9 @@ function loadGameState() {
 
 function clearSave() {
     localStorage.removeItem('rfd_td_save');
+    if (firebaseUser) {
+        db.collection('players').doc(firebaseUser.uid).set({ gameState: null }, { merge: true }).catch(() => {});
+    }
 }
 
 function continueGame() {
@@ -4733,7 +4902,7 @@ function confirmMenu() {
     if (wave > 0 && !gameOver) {
         if (!confirm('Return to menu? Make sure to Save Game first!')) return;
     }
-    if (score > highScore) { highScore = score; localStorage.setItem('rfd_td_highscore', highScore.toString()); }
+    if (score > highScore) { highScore = score; localStorage.setItem('rfd_td_highscore', highScore.toString()); saveToCloud(); }
     goToMenu();
 }
 window.confirmMenu = confirmMenu;
