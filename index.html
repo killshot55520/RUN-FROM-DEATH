@@ -603,6 +603,36 @@ canvas { display: block; }
             <span class="tdesc">Beam ramps up damage</span>
             <span class="tcost">$200</span>
         </button>
+        <button class="tower-btn" id="btn-ninja" onclick="selectTower('ninja')">
+            <span class="tname" style="color:#555">Ninja</span>
+            <span class="tdesc">Shurikens, 25% crit chance</span>
+            <span class="tcost">$110</span>
+        </button>
+        <button class="tower-btn" id="btn-medic" onclick="selectTower('medic')">
+            <span class="tname" style="color:#e74c3c">Medic</span>
+            <span class="tdesc">Heals lives, boosts cooldowns</span>
+            <span class="tcost">$100</span>
+        </button>
+        <button class="tower-btn" id="btn-necromancer" onclick="selectTower('necromancer')">
+            <span class="tname" style="color:#8e24aa">Necromancer</span>
+            <span class="tdesc">Raises ghost minions from kills</span>
+            <span class="tcost">$160</span>
+        </button>
+        <button class="tower-btn" id="btn-railgun" onclick="selectTower('railgun')">
+            <span class="tname" style="color:#f44336">Railgun</span>
+            <span class="tdesc">Piercing beam, massive damage</span>
+            <span class="tcost">$250</span>
+        </button>
+        <button class="tower-btn" id="btn-tornado" onclick="selectTower('tornado')">
+            <span class="tname" style="color:#42a5f5">Tornado</span>
+            <span class="tdesc">Pushes enemies back on path</span>
+            <span class="tcost">$130</span>
+        </button>
+        <button class="tower-btn" id="btn-goldmine" onclick="selectTower('goldmine')">
+            <span class="tname" style="color:#ffd700">Gold Mine</span>
+            <span class="tdesc">Generates $5/3s passively</span>
+            <span class="tcost">$80</span>
+        </button>
 
         <div class="selected-tower-info" id="tower-info">
             <span class="st-name" id="ti-name"></span>
@@ -865,7 +895,7 @@ const TOWER_DEFS = {
     },
     elfhut: {
         name: 'Elf Hut', cost: 120, color: '#2ecc71', skinColor: '#c8e6c9',
-        range: 0, damage: 8, fireRate: 3.0,
+        range: 0, damage: 8, fireRate: 6.0,
         splash: 0, slow: 0, upgradeCost: 80, upgradeScale: 1.5,
         dmgUp: 1.3, rangeUp: 1, rateUp: 0.85,
         hat: '#1b5e20', outfit: '#388e3c',
@@ -917,6 +947,53 @@ const TOWER_DEFS = {
         dmgUp: 1.3, rangeUp: 1.08, rateUp: 0.9,
         hat: '#b71c1c', outfit: '#c62828',
         maxRampDmg: 50,
+    },
+    ninja: {
+        name: 'Ninja', cost: 110, color: '#555', skinColor: '#f0c899',
+        range: 120, damage: 18, fireRate: 0.35,
+        splash: 0, slow: 0, upgradeCost: 70, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1.1, rateUp: 0.85,
+        hat: '#1a1a1a', outfit: '#222',
+        critChance: 0.25, critMult: 2,
+    },
+    medic: {
+        name: 'Medic', cost: 100, color: '#e74c3c', skinColor: '#f0c899',
+        range: 100, damage: 0, fireRate: 15.0,
+        splash: 0, slow: 0, upgradeCost: 65, upgradeScale: 1.5,
+        dmgUp: 1, rangeUp: 1.1, rateUp: 0.88,
+        hat: '#e74c3c', outfit: '#eee',
+        healRange: 100, cooldownReduction: 0.9,
+    },
+    necromancer: {
+        name: 'Necromancer', cost: 160, color: '#8e24aa', skinColor: '#b8d4e3',
+        range: 120, damage: 15, fireRate: 1.2,
+        splash: 0, slow: 0, upgradeCost: 100, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1.1, rateUp: 0.9,
+        hat: '#4a0072', outfit: '#6a1b9a',
+        raiseChance: 0.3,
+    },
+    railgun: {
+        name: 'Railgun', cost: 250, color: '#f44336', skinColor: '#f0c899',
+        range: 250, damage: 150, fireRate: 4.0,
+        splash: 0, slow: 0, upgradeCost: 160, upgradeScale: 1.5,
+        dmgUp: 1.35, rangeUp: 1.08, rateUp: 0.9,
+        hat: '#b71c1c', outfit: '#333',
+    },
+    tornado: {
+        name: 'Tornado', cost: 130, color: '#42a5f5', skinColor: '#b8d4e3',
+        range: 100, damage: 5, fireRate: 3.0,
+        splash: 0, slow: 0, upgradeCost: 80, upgradeScale: 1.5,
+        dmgUp: 1.2, rangeUp: 1.1, rateUp: 0.9,
+        hat: '#1565c0', outfit: '#bbdefb',
+        pushNodes: 4,
+    },
+    goldmine: {
+        name: 'Gold Mine', cost: 80, color: '#ffd700', skinColor: '#f0c899',
+        range: 0, damage: 0, fireRate: 3.0,
+        splash: 0, slow: 0, upgradeCost: 50, upgradeScale: 1.5,
+        dmgUp: 1, rangeUp: 1, rateUp: 0.9,
+        hat: '#8d6e00', outfit: '#a67c00',
+        goldPerTick: 5,
     },
 };
 
@@ -1013,6 +1090,36 @@ const SKIN_TIERS = {
         { outfit: '#880e4f', hat: '#4a0028', accent: '#f50057', glow: null, title: 'Death Ray' },
         { outfit: '#1a1a1a', hat: '#111', accent: '#ffff00', glow: '#ffff00', title: 'Annihilator' },
     ],
+    ninja: [
+        { outfit: '#222', hat: '#1a1a1a', accent: '#555', glow: null, title: 'Ninja' },
+        { outfit: '#1a1a2e', hat: '#111', accent: '#9b59b6', glow: null, title: 'Shadow Blade' },
+        { outfit: '#0a0a0a', hat: '#000', accent: '#00ffcc', glow: '#00ffcc', title: 'Ghost Assassin' },
+    ],
+    medic: [
+        { outfit: '#eee', hat: '#e74c3c', accent: '#e74c3c', glow: null, title: 'Medic' },
+        { outfit: '#ddd', hat: '#c62828', accent: '#4caf50', glow: null, title: 'Field Surgeon' },
+        { outfit: '#f5f5f5', hat: '#b71c1c', accent: '#ffeb3b', glow: '#4caf50', title: 'Miracle Worker' },
+    ],
+    necromancer: [
+        { outfit: '#6a1b9a', hat: '#4a0072', accent: '#ce93d8', glow: null, title: 'Necromancer' },
+        { outfit: '#4a148c', hat: '#311b92', accent: '#b388ff', glow: null, title: 'Death Mage' },
+        { outfit: '#1a0a2e', hat: '#0a0a1a', accent: '#ea80fc', glow: '#ea80fc', title: 'Lich King' },
+    ],
+    railgun: [
+        { outfit: '#333', hat: '#b71c1c', accent: '#f44336', glow: null, title: 'Railgun' },
+        { outfit: '#222', hat: '#880e4f', accent: '#ff5722', glow: null, title: 'Gauss Cannon' },
+        { outfit: '#111', hat: '#000', accent: '#ff1744', glow: '#ff1744', title: 'Orbital Strike' },
+    ],
+    tornado: [
+        { outfit: '#bbdefb', hat: '#1565c0', accent: '#42a5f5', glow: null, title: 'Wind Mage' },
+        { outfit: '#90caf9', hat: '#0d47a1', accent: '#2196f3', glow: null, title: 'Storm Caller' },
+        { outfit: '#e3f2fd', hat: '#0a2a5a', accent: '#00e5ff', glow: '#00e5ff', title: 'Hurricane' },
+    ],
+    goldmine: [
+        { outfit: '#a67c00', hat: '#8d6e00', accent: '#ffd700', glow: null, title: 'Gold Mine' },
+        { outfit: '#c08900', hat: '#9e7700', accent: '#ffeb3b', glow: null, title: 'Gold Refinery' },
+        { outfit: '#d4a000', hat: '#b8860b', accent: '#fff176', glow: '#ffd700', title: 'Treasure Vault' },
+    ],
 };
 
 function getSkinTier(type, level) {
@@ -1045,13 +1152,19 @@ const SHOP_ITEMS = {
     tesla:      { price: 110, desc: 'Chain lightning' },
     poison:     { price: 55, desc: 'Poison damage over time' },
     laser:      { price: 160, desc: 'Beam ramps up damage' },
+    ninja:      { price: 70,  desc: 'Shurikens, crit hits' },
+    medic:      { price: 80,  desc: 'Heals lives & boosts towers' },
+    necromancer:{ price: 130, desc: 'Raises ghost minions' },
+    railgun:    { price: 200, desc: 'Piercing massive damage' },
+    tornado:    { price: 90,  desc: 'Pushes enemies back' },
+    goldmine:   { price: 40,  desc: 'Generates money passively' },
 };
 
 const DIFFICULTIES = {
     easy:       { hpMult: 1.0, speedMult: 1.0,  rewardMult: 0.8, startMoney: 120, lives: 20, coins: 50,   waves: 30 },
     medium:     { hpMult: 1.3, speedMult: 1.15, rewardMult: 1.0, startMoney: 100, lives: 15, coins: 70,   waves: 50 },
     hard:       { hpMult: 1.8, speedMult: 1.3,  rewardMult: 1.1, startMoney: 75,  lives: 8,  coins: 100,  waves: 80 },
-    impossible: { hpMult: 2.5, speedMult: 1.6,  rewardMult: 1.3, startMoney: 50,  lives: 3,  coins: 1000, waves: 100 },
+    impossible: { hpMult: 2.0, speedMult: 1.4,  rewardMult: 1.5, startMoney: 75,  lives: 5,  coins: 1000, waves: 100 },
 };
 
 let coins = parseInt(localStorage.getItem('rfd_td_coins') || '0');
@@ -1135,7 +1248,7 @@ const ENEMY_TYPES = {
 };
 
 // Megaboss HP per difficulty (overrides the base hp)
-const MEGABOSS_HP = { easy: 50000, medium: 75000, hard: 100000, impossible: 500000 };
+const MEGABOSS_HP = { easy: 50000, medium: 75000, hard: 100000, impossible: 300000 };
 
 // Wave generator — creates wave composition for any wave number
 function generateWave(w) {
@@ -1505,6 +1618,7 @@ function updateEnemies(dt) {
                 if (e.hp <= 0 && e.alive) {
                     e.alive = false; score += e.reward; money += e.reward;
                     spawnParticles(e.x, e.y, '#76ff03', 8, 120);
+                    checkNecromancerRaise(e);
                 }
             }
         }
@@ -1548,6 +1662,88 @@ function updateTowers(dt) {
     for (const t of towers) {
         if (t.type === 'elfhut' || t.type === 'milbase' || t.type === 'dj') continue;
 
+        // === GOLD MINE: passive income, no attacks ===
+        if (t.type === 'goldmine') {
+            t.cooldown -= dt;
+            if (t.cooldown <= 0) {
+                t.cooldown = t.fireRate;
+                const goldDef = TOWER_DEFS.goldmine;
+                const goldAmt = (goldDef.goldPerTick || 5) * t.level;
+                money += goldAmt;
+                t.shootAnim = 1;
+                spawnParticles(t.x, t.y - 10, '#ffd700', 3, 40);
+            }
+            t.shootAnim = Math.max(0, t.shootAnim - dt * 4);
+            continue;
+        }
+
+        // === MEDIC: heals lives + reduces nearby cooldowns ===
+        if (t.type === 'medic') {
+            t.cooldown -= dt;
+            t.shootAnim = Math.max(0, t.shootAnim - dt * 4);
+            if (t.cooldown <= 0) {
+                t.cooldown = t.fireRate;
+                // Heal +1 life (capped at starting lives for difficulty)
+                const maxLives = ownerMode ? 9999 : difficultyConfig.lives;
+                if (lives < maxLives) {
+                    lives++;
+                    t.shootAnim = 1;
+                    spawnParticles(t.x, t.y, '#4caf50', 6, 60);
+                }
+            }
+            // Apply 10% cooldown reduction to nearby towers
+            const healRange = (TOWER_DEFS.medic.healRange || 100) * Math.pow(1.1, t.level - 1);
+            for (const other of towers) {
+                if (other === t) continue;
+                if (other.type === 'medic' || other.type === 'goldmine' || other.type === 'dj') continue;
+                const dx = other.x - t.x, dy = other.y - t.y;
+                if (Math.sqrt(dx * dx + dy * dy) <= healRange) {
+                    // Reduce cooldown slightly each frame
+                    other.cooldown -= dt * 0.1;
+                }
+            }
+            continue;
+        }
+
+        // === TORNADO: pushes enemies back ===
+        if (t.type === 'tornado') {
+            t.cooldown -= dt;
+            t.shootAnim = Math.max(0, t.shootAnim - dt * 4);
+            if (t.cooldown <= 0) {
+                // Find best target
+                let best = null, bestDist = -1;
+                for (const e of enemies) {
+                    if (!e.alive) continue;
+                    const dx = e.x - t.x, dy = e.y - t.y;
+                    const d = Math.sqrt(dx * dx + dy * dy);
+                    if (d <= t.range && e.dist > bestDist) { best = e; bestDist = e.dist; }
+                }
+                if (best) {
+                    t.cooldown = t.fireRate * getSpeedBoost(t);
+                    t.angle = Math.atan2(best.y - t.y, best.x - t.x);
+                    t.shootAnim = 1;
+                    const boost = getBoostMultiplier(t);
+                    // Do small damage
+                    best.hp -= t.damage * boost;
+                    // Push enemy back on path
+                    const pushBack = (TOWER_DEFS.tornado.pushNodes || 4) + Math.floor(t.level / 2);
+                    best.pathIdx = Math.max(0, best.pathIdx - pushBack);
+                    best.x = PATH[best.pathIdx].x;
+                    best.y = PATH[best.pathIdx].y;
+                    best.dist = Math.max(0, best.dist - pushBack * TILE);
+                    spawnParticles(best.x, best.y, '#42a5f5', 8, 100);
+                    spawnParticles(best.x, best.y, '#bbdefb', 6, 80);
+                    if (best.hp <= 0 && best.alive) {
+                        best.alive = false; score += best.reward; money += best.reward;
+                        spawnParticles(best.x, best.y, best.color, 10, 150);
+                        checkNecromancerRaise(best);
+                    }
+                }
+            }
+            t.target = null;
+            continue;
+        }
+
         // === FLAMETHROWER: AoE burn, no projectiles ===
         if (t.type === 'flamethrower') {
             t.cooldown -= dt;
@@ -1567,6 +1763,7 @@ function updateTowers(dt) {
                             e.alive = false;
                             score += e.reward; money += e.reward;
                             spawnParticles(e.x, e.y, e.color, 6, 100);
+                            checkNecromancerRaise(e);
                         }
                     }
                 }
@@ -1606,6 +1803,7 @@ function updateTowers(dt) {
                         best.alive = false;
                         score += best.reward; money += best.reward;
                         spawnParticles(best.x, best.y, best.color, 8, 120);
+                        checkNecromancerRaise(best);
                         t.laserTarget = null;
                         t.laserRamp = 0;
                     }
@@ -1643,7 +1841,32 @@ function updateTowers(dt) {
 function shoot(tower, target) {
     const def = TOWER_DEFS[tower.type];
     const boost = getBoostMultiplier(tower);
-    const speed = tower.type === 'sniper' ? 500 : tower.type === 'rocketeer' ? 220 : tower.type === 'tank' ? 280 : tower.type === 'jet' ? 350 : tower.type === 'plane' ? 300 : tower.type === 'heli' ? 400 : tower.type === 'minigunner' ? 450 : 350;
+    const speed = tower.type === 'sniper' ? 500 : tower.type === 'rocketeer' ? 220 : tower.type === 'tank' ? 280 : tower.type === 'jet' ? 350 : tower.type === 'plane' ? 300 : tower.type === 'heli' ? 400 : tower.type === 'minigunner' ? 450 : tower.type === 'railgun' ? 600 : tower.type === 'ninja' ? 400 : 350;
+
+    // === RAILGUN: piercing beam through ALL enemies in a line ===
+    if (tower.type === 'railgun') {
+        const a = tower.angle;
+        const dmg = tower.damage * boost;
+        projectiles.push({
+            x: tower.x + Math.cos(a) * 14,
+            y: tower.y + Math.sin(a) * 14,
+            vx: Math.cos(a) * speed,
+            vy: Math.sin(a) * speed,
+            targetId: null,
+            speed,
+            damage: dmg,
+            splash: 0, slow: 0, slowDur: 0,
+            color: '#ff1744',
+            size: 4,
+            alive: true,
+            towerType: 'railgun',
+            life: 1.0, // long life for piercing
+            piercing: true, // doesn't die on hit
+            hitEnemies: new Set(), // track who we've hit
+        });
+        spawnParticles(tower.x + Math.cos(a) * 16, tower.y + Math.sin(a) * 16, '#ff4444', 4, 80);
+        return;
+    }
 
     // === TESLA: chain lightning, no projectile ===
     if (tower.type === 'tesla') {
@@ -1658,6 +1881,7 @@ function shoot(tower, target) {
         if (target.hp <= 0 && target.alive) {
             target.alive = false; score += target.reward; money += target.reward;
             spawnParticles(target.x, target.y, target.color, 10, 150);
+            checkNecromancerRaise(target);
         }
         // Chain to nearby enemies
         let lastHit = target;
@@ -1679,6 +1903,7 @@ function shoot(tower, target) {
             if (closest.hp <= 0 && closest.alive) {
                 closest.alive = false; score += closest.reward; money += closest.reward;
                 spawnParticles(closest.x, closest.y, closest.color, 10, 150);
+                checkNecromancerRaise(closest);
             }
             lastHit = closest;
         }
@@ -1711,26 +1936,39 @@ function shoot(tower, target) {
         return; // Don't do normal projectile
     }
 
+    // Ninja crit chance
+    let projDmg = tower.damage * boost;
+    let isCrit = false;
+    if (tower.type === 'ninja') {
+        const critChance = TOWER_DEFS.ninja.critChance || 0.25;
+        const critMult = TOWER_DEFS.ninja.critMult || 2;
+        if (Math.random() < critChance) {
+            projDmg *= critMult;
+            isCrit = true;
+        }
+    }
+
     projectiles.push({
         x: tower.x + Math.cos(tower.angle) * 14,
         y: tower.y + Math.sin(tower.angle) * 14,
         targetId: target, speed,
-        damage: tower.damage * boost,
+        damage: projDmg,
         splash: tower.splash,
         slow: tower.slow, slowDur: tower.slowDur || 0,
         color: def.color,
-        size: tower.type === 'rocketeer' ? 5 : tower.type === 'tank' ? 5 : tower.type === 'jet' ? 4 : tower.type === 'plane' ? 4 : tower.type === 'heli' ? 3 : tower.type === 'minigunner' ? 2 : tower.type === 'poison' ? 3 : 3,
+        size: tower.type === 'rocketeer' ? 5 : tower.type === 'tank' ? 5 : tower.type === 'jet' ? 4 : tower.type === 'plane' ? 4 : tower.type === 'heli' ? 3 : tower.type === 'minigunner' ? 2 : tower.type === 'poison' ? 3 : tower.type === 'ninja' ? 3 : tower.type === 'necromancer' ? 3 : 3,
         alive: true,
         towerType: tower.type,
         poisonDmg: def.poisonDmg || 0,
         poisonDur: def.poisonDur || 0,
+        isCrit: isCrit,
     });
 
     // Muzzle flash particles
     spawnParticles(
         tower.x + Math.cos(tower.angle) * 16,
         tower.y + Math.sin(tower.angle) * 16,
-        tower.type === 'frost' ? '#88eedd' : tower.type === 'jet' ? '#f39c12' : tower.type === 'plane' ? '#ff8' : tower.type === 'tank' ? '#f1c40f' : tower.type === 'heli' ? '#ff8844' : tower.type === 'poison' ? '#76ff03' : '#ff8',
+        tower.type === 'frost' ? '#88eedd' : tower.type === 'jet' ? '#f39c12' : tower.type === 'plane' ? '#ff8' : tower.type === 'tank' ? '#f1c40f' : tower.type === 'heli' ? '#ff8844' : tower.type === 'poison' ? '#76ff03' : tower.type === 'ninja' ? '#aaa' : tower.type === 'necromancer' ? '#ce93d8' : '#ff8',
         2, 40
     );
 }
@@ -1748,11 +1986,19 @@ function updateProjectiles(dt) {
             // Check collision with all enemies
             for (const e of enemies) {
                 if (!e.alive) continue;
+                if (p.hitEnemies && p.hitEnemies.has(e)) continue; // piercing: skip already hit
                 const dx = p.x - e.x, dy = p.y - e.y;
                 if (Math.abs(dx) < e.size + 3 && Math.abs(dy) < e.size + 3) {
                     hitEnemy(e, p);
-                    p.alive = false;
-                    break;
+                    if (p.piercing) {
+                        // Railgun pierces - don't die, just mark enemy as hit
+                        if (!p.hitEnemies) p.hitEnemies = new Set();
+                        p.hitEnemies.add(e);
+                        spawnParticles(e.x, e.y, '#ff4444', 4, 80);
+                    } else {
+                        p.alive = false;
+                        break;
+                    }
                 }
             }
             continue;
@@ -1794,6 +2040,7 @@ function hitEnemy(enemy, proj) {
                 if (e.hp <= 0 && e.alive) {
                     e.alive = false; score += e.reward; money += e.reward;
                     spawnParticles(e.x, e.y, e.color, 10, 150);
+                    checkNecromancerRaise(e);
                 }
             }
         }
@@ -1801,6 +2048,47 @@ function hitEnemy(enemy, proj) {
     if (enemy.hp <= 0 && enemy.alive) {
         enemy.alive = false; score += enemy.reward; money += enemy.reward;
         spawnParticles(enemy.x, enemy.y, enemy.color, 12, 150);
+        // Necromancer: chance to raise ghost from dead enemy
+        checkNecromancerRaise(enemy);
+    }
+}
+
+function checkNecromancerRaise(deadEnemy) {
+    for (const t of towers) {
+        if (t.type !== 'necromancer') continue;
+        const dx = deadEnemy.x - t.x, dy = deadEnemy.y - t.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= t.range) {
+            const chance = (TOWER_DEFS.necromancer.raiseChance || 0.3) + (t.level - 1) * 0.05;
+            if (Math.random() < chance) {
+                const boost = getBoostMultiplier(t);
+                // Find closest path index to dead enemy
+                let closestIdx = 0, closestDist = Infinity;
+                for (let i = 0; i < PATH.length; i++) {
+                    const ddx = PATH[i].x - deadEnemy.x, ddy = PATH[i].y - deadEnemy.y;
+                    const d = ddx * ddx + ddy * ddy;
+                    if (d < closestDist) { closestDist = d; closestIdx = i; }
+                }
+                elves.push({
+                    x: deadEnemy.x, y: deadEnemy.y,
+                    pathIdx: closestIdx,
+                    speed: 70 * (1 + t.level * 0.1),
+                    damage: t.damage * boost * (1 + t.level * 0.2),
+                    alive: true,
+                    tier: t.level >= 5 ? 3 : t.level >= 3 ? 2 : 1,
+                    unitType: 'ghost',
+                    role: 'ghost',
+                    shootRange: 0,
+                    shootCooldown: 0,
+                    shootRate: 0,
+                    shootDmg: 0,
+                    crouching: false, retreating: false, targetAngle: 0,
+                    ghostColor: deadEnemy.color,
+                    ghostSize: deadEnemy.size,
+                });
+                spawnParticles(deadEnemy.x, deadEnemy.y, '#ce93d8', 8, 80);
+                break; // Only one necromancer can raise per death
+            }
+        }
     }
 }
 
@@ -2080,6 +2368,7 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
     if (type === 'elfhut') { drawElfHut(x, y, level, skin, glow, tier); return; }
     if (type === 'milbase') { drawMilBase(x, y, level, skin, glow, tier); return; }
     if (type === 'dj') { drawDJ(x, y, level, skin, glow, tier); return; }
+    if (type === 'goldmine') { drawGoldMine(x, y, level, skin, glow, tier); return; }
 
     ctx.save();
     ctx.translate(x, y);
@@ -2306,6 +2595,91 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
         ctx.fillRect(-2, -5, 4, 3);
         ctx.globalAlpha = 1;
         if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.15; ctx.fillRect(-6, -6, 12, 8); ctx.globalAlpha = 1; }
+    } else if (type === 'ninja') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        // Black ninja suit
+        ctx.fillStyle = tier >= 3 ? '#050505' : '#1a1a1a';
+        ctx.fillRect(-6, -6, 12, 8);
+        // Belt with throwing stars
+        ctx.fillStyle = acc;
+        ctx.fillRect(-6, 1, 12, 2);
+        ctx.fillStyle = '#888';
+        ctx.fillRect(-5, 1, 2, 2); ctx.fillRect(-1, 1, 2, 2); ctx.fillRect(3, 1, 2, 2);
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.1; ctx.fillRect(-6, -6, 12, 8); ctx.globalAlpha = 1; }
+    } else if (type === 'medic') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        // White coat
+        ctx.fillStyle = tier >= 3 ? '#f5f5f5' : '#ddd';
+        ctx.fillRect(-6, -6, 12, 8);
+        // Red cross on chest
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(-1, -5, 2, 5);
+        ctx.fillRect(-3, -4, 6, 2);
+        // Pockets
+        ctx.fillStyle = '#ccc';
+        ctx.fillRect(-5, 0, 3, 3); ctx.fillRect(2, 0, 3, 3);
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.1; ctx.fillRect(-6, -6, 12, 8); ctx.globalAlpha = 1; }
+    } else if (type === 'necromancer') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        // Dark purple robe
+        ctx.fillStyle = tier >= 3 ? '#0a0a1a' : '#3a0a5a';
+        ctx.fillRect(-6, -6, 12, 8);
+        // Floating robe bottom
+        ctx.fillRect(-7, 0, 14, 9);
+        // Skull emblem
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(-2, -5, 4, 3);
+        ctx.fillStyle = out;
+        ctx.fillRect(-1, -5, 1, 1); ctx.fillRect(0, -5, 1, 1);
+        // Floating souls
+        const soulT = performance.now() / 300;
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.3 + Math.sin(soulT) * 0.2;
+        for (let s = 0; s < (tier >= 3 ? 4 : tier >= 2 ? 3 : 2); s++) {
+            const sa = soulT + s * (Math.PI * 2 / 4);
+            const sr = 14 + s * 2;
+            ctx.fillRect(Math.cos(sa) * sr - 1, Math.sin(sa) * sr - 6, 2, 2);
+        }
+        ctx.globalAlpha = 1;
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.1; ctx.fillRect(-7, -8, 14, 16); ctx.globalAlpha = 1; }
+    } else if (type === 'railgun') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        // Sci-fi armored suit
+        ctx.fillStyle = tier >= 3 ? '#111' : '#2a2a2a';
+        ctx.fillRect(-6, -6, 12, 8);
+        // Power lines
+        ctx.fillStyle = acc;
+        ctx.fillRect(-6, -3, 12, 1);
+        ctx.fillRect(-6, 1, 12, 1);
+        // Charging indicator
+        ctx.fillStyle = tier >= 3 ? glow || '#ff1744' : '#f44336';
+        ctx.globalAlpha = 0.4 + Math.sin(performance.now() / 150) * 0.3;
+        ctx.fillRect(-2, -5, 4, 3);
+        ctx.globalAlpha = 1;
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.15; ctx.fillRect(-6, -6, 12, 8); ctx.globalAlpha = 1; }
+    } else if (type === 'tornado') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        // Wizard robe
+        ctx.fillStyle = tier >= 3 ? '#e3f2fd' : '#bbdefb';
+        ctx.fillRect(-6, -6, 12, 8);
+        // Wind swirl on chest
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.4 + Math.sin(performance.now() / 200) * 0.3;
+        ctx.beginPath();
+        ctx.arc(0, -2, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Flowing robe bottom
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, 0, 14, 9);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-7, 8, 14, 1);
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.1; ctx.fillRect(-7, -8, 14, 16); ctx.globalAlpha = 1; }
     } else {
         // Gunner
         ctx.fillStyle = out;
@@ -2565,6 +2939,98 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
             ctx.fillRect(26, -1, 20, 1);
             ctx.globalAlpha = 1;
         }
+    } else if (type === 'ninja') {
+        // Throwing arm with shuriken
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 4, 3);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(3, -3, 6, 5);
+        // Shuriken in hand (spinning)
+        if (shootAnim > 0.3) {
+            const spinAngle = performance.now() / 50;
+            ctx.save();
+            ctx.translate(12 - recoil, 0);
+            ctx.rotate(spinAngle);
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(-3, -1, 6, 2);
+            ctx.fillRect(-1, -3, 2, 6);
+            ctx.fillStyle = '#888';
+            ctx.fillRect(-1, -1, 2, 2);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(8 - recoil, -1, 4, 2);
+            ctx.fillRect(9 - recoil, -2, 2, 4);
+        }
+    } else if (type === 'medic') {
+        // Stethoscope + medikit
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 4, 3);
+        // Medical bag
+        ctx.fillStyle = '#eee';
+        ctx.fillRect(8, -3, 8, 6);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(10, -2, 1, 4);
+        ctx.fillRect(9, -1, 3, 2);
+        // Stethoscope tube
+        ctx.fillStyle = '#555';
+        ctx.fillRect(6, 0, 6, 1);
+    } else if (type === 'necromancer') {
+        // Skull staff
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 4, 3);
+        ctx.fillStyle = '#4a3a2a';
+        ctx.fillRect(8, -2, 3, 18); // staff
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(7, -6, 5, 5); // skull on top
+        ctx.fillStyle = '#333';
+        ctx.fillRect(8, -5, 1, 1); ctx.fillRect(10, -5, 1, 1); // eye sockets
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 200) * 0.3;
+        ctx.fillRect(8, -5, 1, 1); ctx.fillRect(10, -5, 1, 1); // glowing eyes
+        ctx.globalAlpha = 1;
+    } else if (type === 'railgun') {
+        // Massive cannon
+        ctx.fillStyle = sk; ctx.fillRect(5, -3, 5, 5);
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(3 - recoil, -5, 8, 8); // cannon base
+        ctx.fillStyle = metalLo;
+        ctx.fillRect(10 - recoil, -4, 20, 6); // main barrel
+        ctx.fillStyle = metalHi;
+        ctx.fillRect(10 - recoil, -4, 20, 2);
+        // Coils along barrel
+        ctx.fillStyle = acc;
+        for (let i = 0; i < 4; i++) {
+            ctx.fillRect(12 + i * 5 - recoil, -5, 2, 8);
+        }
+        // Muzzle
+        ctx.fillStyle = '#444';
+        ctx.fillRect(29 - recoil, -5, 3, 8);
+        // Charging glow
+        ctx.fillStyle = tier >= 3 ? glow || '#ff1744' : '#f44336';
+        ctx.globalAlpha = 0.3 + Math.sin(performance.now() / 100) * 0.2;
+        ctx.fillRect(10 - recoil, -2, 20, 2);
+        ctx.globalAlpha = 1;
+        if (shootAnim > 0.5) {
+            ctx.fillStyle = '#ff4444';
+            ctx.globalAlpha = shootAnim - 0.3;
+            ctx.fillRect(31 - recoil, -6, 8, 10);
+            ctx.globalAlpha = 1;
+        }
+    } else if (type === 'tornado') {
+        // Wind staff
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 4, 3);
+        ctx.fillStyle = '#6a5030';
+        ctx.fillRect(8, -2, 3, 16); // staff
+        // Swirling wind orb
+        const windT = performance.now() / 200;
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.4;
+        for (let w = 0; w < 5; w++) {
+            const wa = windT + w * (Math.PI * 2 / 5);
+            const wr = 4 + Math.sin(windT * 2 + w) * 2;
+            ctx.fillRect(9 + Math.cos(wa) * wr, -6 + Math.sin(wa) * wr, 2, 2);
+        }
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.arc(9.5, -5, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
     }
     ctx.restore();
 
@@ -2813,6 +3279,86 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
         ctx.fillRect(4, -25, 3, 2);
         if (tier >= 2) { ctx.fillStyle = acc; ctx.fillRect(-6, -20, 12, 1); }
         if (tier >= 3) { ctx.fillStyle = glow; ctx.globalAlpha = 0.3; ctx.fillRect(-6, -22, 12, 6); ctx.globalAlpha = 1; }
+    } else if (type === 'ninja') {
+        // Ninja hood / face mask
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-6, -22, 12, 4);
+        ctx.fillRect(-7, -20, 14, 3);
+        // Face mask (covers lower face)
+        ctx.fillStyle = tier >= 3 ? '#050505' : '#1a1a1a';
+        ctx.fillRect(-5, -13, 10, 4);
+        // Head wrap
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-5, -22, 10, 3);
+        // Only eyes visible
+        if (tier >= 3 && glow) {
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.5;
+            ctx.fillRect(-4, -15, 3, 2); ctx.fillRect(1, -15, 3, 2);
+            ctx.globalAlpha = 1;
+        }
+        if (tier >= 2) { ctx.fillStyle = acc; ctx.fillRect(-5, -20, 10, 1); }
+    } else if (type === 'medic') {
+        // Medic cap with red cross
+        ctx.fillStyle = '#eee';
+        ctx.fillRect(-6, -22, 12, 4);
+        ctx.fillRect(-7, -20, 14, 3);
+        // Red cross on hat
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(-1, -22, 2, 4);
+        ctx.fillRect(-3, -21, 6, 2);
+        if (tier >= 2) { ctx.fillStyle = acc; ctx.fillRect(-6, -19, 12, 1); }
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.2; ctx.fillRect(-6, -22, 12, 5); ctx.globalAlpha = 1; }
+    } else if (type === 'necromancer') {
+        // Dark hood
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-7, -22, 14, 5);
+        ctx.fillRect(-8, -19, 16, 3);
+        // Hood peak
+        ctx.fillRect(-5, -25, 10, 4);
+        ctx.fillRect(-3, -27, 6, 3);
+        // Shadow over face
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(-5, -18, 10, 6);
+        // Glowing eyes in shadow
+        ctx.fillStyle = tier >= 3 ? glow || '#ea80fc' : '#ce93d8';
+        ctx.globalAlpha = 0.7 + Math.sin(performance.now() / 200) * 0.3;
+        ctx.fillRect(-3, -16, 2, 2); ctx.fillRect(1, -16, 2, 2);
+        ctx.globalAlpha = 1;
+    } else if (type === 'railgun') {
+        // Sci-fi helmet with visor
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-6, -22, 12, 5);
+        ctx.fillRect(-7, -20, 14, 4);
+        // Full face visor
+        ctx.fillStyle = '#111';
+        ctx.fillRect(-5, -17, 10, 6);
+        ctx.fillStyle = tier >= 3 ? glow || '#ff1744' : '#f44336';
+        ctx.globalAlpha = 0.6;
+        ctx.fillRect(-4, -16, 8, 3);
+        ctx.globalAlpha = 1;
+        // Antenna
+        ctx.fillStyle = '#666';
+        ctx.fillRect(5, -26, 1, 6);
+        ctx.fillStyle = acc;
+        ctx.fillRect(4, -27, 3, 2);
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.2; ctx.fillRect(-6, -22, 12, 6); ctx.globalAlpha = 1; }
+    } else if (type === 'tornado') {
+        // Wizard hat (tall, blue/white)
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-8, -21, 16, 3);
+        ctx.fillRect(-6, -24, 12, 5);
+        ctx.fillRect(-5, -27, 10, 4);
+        ctx.fillRect(-4, -30, 8, 4);
+        ctx.fillRect(-3, -33, 6, 4);
+        ctx.fillRect(-2, -35, 4, 3);
+        // Wind swirl on hat
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 250) * 0.3;
+        ctx.fillRect(-1, -28, 2, 2);
+        if (tier >= 2) ctx.fillRect(2, -32, 2, 2);
+        if (tier >= 3) { ctx.fillRect(-3, -30, 2, 2); ctx.fillRect(0, -34, 2, 2); }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = acc; ctx.fillRect(-6, -24, 12, 1);
     }
 
     // === LEVEL RANK INDICATOR ===
@@ -3919,6 +4465,132 @@ function drawMilBase(x, y, level, skin, glow, tier) {
     ctx.restore();
 }
 
+// ============================================================
+// GOLD MINE DRAWING
+// ============================================================
+function drawGoldMine(x, y, level, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#a67c00';
+    const acc = skin ? skin.accent : '#ffd700';
+
+    if (glow) {
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.1 + Math.sin(performance.now() / 300) * 0.05;
+        ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(0, 14, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Mine entrance (dark cave)
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-8, -2, 16, 14);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-6, 0, 12, 12);
+
+    // Wooden support frame
+    ctx.fillStyle = '#6d4c22';
+    ctx.fillRect(-10, -4, 4, 16); // left beam
+    ctx.fillRect(6, -4, 4, 16);  // right beam
+    ctx.fillRect(-10, -6, 20, 4); // top beam
+    // Cross beam
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(-8, -2, 16, 2);
+
+    // Gold ore deposits (sparkly yellow rocks)
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(-5, 3, 3, 2);
+    ctx.fillRect(2, 5, 3, 2);
+    ctx.fillRect(-3, 7, 2, 2);
+    // Ore sparkle
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.4 + Math.sin(performance.now() / 300) * 0.3;
+    ctx.fillRect(-4, 3, 1, 1);
+    ctx.fillRect(3, 5, 1, 1);
+    ctx.globalAlpha = 1;
+
+    // Minecart (front of mine)
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-6, 8, 12, 5); // cart body
+    ctx.fillStyle = '#444';
+    ctx.fillRect(-5, 9, 10, 3);
+    // Wheels
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-5, 12, 3, 2);
+    ctx.fillRect(2, 12, 3, 2);
+    // Gold nuggets in cart
+    ctx.fillStyle = acc;
+    ctx.fillRect(-3, 8, 2, 2);
+    ctx.fillRect(0, 9, 2, 1);
+    ctx.fillRect(2, 8, 2, 2);
+
+    // Pickaxe leaning on side
+    ctx.fillStyle = '#6d4c22';
+    ctx.fillRect(8, -8, 2, 12); // handle
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(6, -10, 6, 3); // head
+    ctx.fillStyle = '#888';
+    ctx.fillRect(5, -10, 2, 2);
+
+    // Rails on ground
+    ctx.fillStyle = '#666';
+    ctx.fillRect(-14, 12, 28, 1);
+    ctx.fillRect(-14, 14, 28, 1);
+    // Ties
+    ctx.fillStyle = '#4a3a1a';
+    for (let i = -12; i < 14; i += 4) {
+        ctx.fillRect(i, 11, 2, 4);
+    }
+
+    // Tier decorations
+    if (tier >= 2) {
+        // More gold deposits
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(-9, -2, 2, 2);
+        ctx.fillRect(7, 0, 2, 2);
+        // Lantern
+        ctx.fillStyle = '#f1c40f';
+        ctx.globalAlpha = 0.6 + Math.sin(performance.now() / 200) * 0.3;
+        ctx.fillRect(-12, -2, 3, 3);
+        ctx.globalAlpha = 1;
+    }
+    if (tier >= 3) {
+        // Vault door visible inside
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.2;
+        ctx.fillRect(-4, 1, 8, 6);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(-2, 3, 4, 3);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-1, 4, 2, 1);
+    }
+
+    // Gold coin floating animation when producing
+    const coinT = performance.now() / 500;
+    ctx.fillStyle = acc;
+    ctx.globalAlpha = 0.3 + Math.abs(Math.sin(coinT)) * 0.4;
+    ctx.fillRect(-1, -10 + Math.sin(coinT) * 2, 3, 3);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, -9 + Math.sin(coinT) * 2, 1, 1);
+    ctx.globalAlpha = 1;
+
+    // Level indicator
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 16, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 17, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
 //  ELF & VEHICLE SYSTEM (spawned by elf huts and military bases)
 // ============================================================
 function updateElves(dt) {
@@ -3938,7 +4610,7 @@ function updateElves(dt) {
             const spawnIdx = PATH.length - 1; // spawn at END of path, walk toward start
 
             if (t.type === 'elfhut') {
-                const elfCount = Math.min(2 + Math.floor(t.level / 2), 5);
+                const elfCount = Math.min(1 + Math.floor(t.level / 2), 3);
                 for (let i = 0; i < elfCount; i++) {
                     let role = 'sword';
                     if (t.level >= 5 && Math.random() < 0.3) role = 'mage';
@@ -4047,20 +4719,21 @@ function updateElves(dt) {
             }
         }
 
-        // Collision with enemies — kamikaze crash (sword elves + all vehicles)
+        // Collision with enemies — kamikaze crash (sword elves, vehicles, ghosts)
         for (const e of enemies) {
             if (!e.alive) continue;
             const dx = elf.x - e.x, dy = elf.y - e.y;
-            const hitDist = e.size + (elf.unitType === 'vehicle' ? 8 : 5);
+            const hitDist = e.size + (elf.unitType === 'vehicle' ? 8 : elf.unitType === 'ghost' ? 6 : 5);
             if (Math.abs(dx) < hitDist && Math.abs(dy) < hitDist) {
                 e.hp -= elf.damage;
-                const pColor = elf.unitType === 'vehicle' ? '#ff8844' : '#2ecc71';
+                const pColor = elf.unitType === 'vehicle' ? '#ff8844' : elf.unitType === 'ghost' ? '#ce93d8' : '#2ecc71';
                 spawnParticles(elf.x, elf.y, pColor, 8, 120);
                 spawnParticles(elf.x, elf.y, e.color, 4, 80);
                 if (e.hp <= 0 && e.alive) {
                     e.alive = false;
                     score += e.reward; money += e.reward;
                     spawnParticles(e.x, e.y, e.color, 12, 150);
+                    checkNecromancerRaise(e);
                 }
                 elf.alive = false;
                 break;
@@ -4084,6 +4757,38 @@ function renderElves() {
         if (elf.pathIdx > 0) {
             const target = PATH[elf.pathIdx - 1];
             facing = Math.atan2(target.y - ey, target.x - ex);
+        }
+
+        // === GHOSTS (necromancer) ===
+        if (elf.unitType === 'ghost') {
+            ctx.save();
+            ctx.translate(ex, ey);
+            const ghostPulse = Math.sin(performance.now() / 200 + ex) * 0.2;
+            ctx.globalAlpha = 0.5 + ghostPulse;
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.beginPath(); ctx.ellipse(0, 4, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
+            // Ghost body (wavy)
+            const ghostC = elf.ghostColor || '#ce93d8';
+            const wave = Math.sin(performance.now() / 150 + ex) * 2;
+            ctx.fillStyle = ghostC;
+            ctx.fillRect(-4, -6 + wave, 8, 8);
+            ctx.fillRect(-3, 1 + wave, 2, 3);
+            ctx.fillRect(1, 2 + wave, 2, 2);
+            // Ghost eyes
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(-3, -4 + wave, 2, 2);
+            ctx.fillRect(1, -4 + wave, 2, 2);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-2, -3 + wave, 1, 1);
+            ctx.fillRect(2, -3 + wave, 1, 1);
+            // Glow aura
+            ctx.fillStyle = ghostC;
+            ctx.globalAlpha = 0.1;
+            ctx.beginPath(); ctx.arc(0, -2, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+            continue;
         }
 
         // === VEHICLES ===
@@ -4375,6 +5080,17 @@ function renderBoostRanges() {
             ctx.lineWidth = 1;
             ctx.stroke();
         }
+        if (t.type === 'medic') {
+            const healRange = (TOWER_DEFS.medic.healRange || 100) * Math.pow(1.1, t.level - 1);
+            const pulse = Math.sin(performance.now() / 300) * 0.02;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, healRange, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(76,175,80,${0.03 + pulse})`;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(76,175,80,0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
     }
 }
 
@@ -4463,6 +5179,39 @@ function renderTowers() {
             ctx.fill();
             ctx.globalAlpha = 1;
             ctx.restore();
+        }
+
+        // === TORNADO SWIRL EFFECT ===
+        if (t.type === 'tornado' && t.shootAnim > 0.1) {
+            ctx.save();
+            ctx.globalAlpha = t.shootAnim * 0.4;
+            const swirlT = performance.now() / 100;
+            for (let s = 0; s < 8; s++) {
+                const sa = swirlT + s * (Math.PI / 4);
+                const sr = 8 + s * 2;
+                ctx.fillStyle = s % 2 === 0 ? '#42a5f5' : '#bbdefb';
+                ctx.fillRect(t.x + Math.cos(sa) * sr - 1, t.y + Math.sin(sa) * sr - 1, 3, 3);
+            }
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        }
+
+        // === MEDIC HEAL INDICATOR ===
+        if (t.type === 'medic') {
+            const healRange = (TOWER_DEFS.medic.healRange || 100) * Math.pow(1.1, t.level - 1);
+            for (const other of towers) {
+                if (other === t || other.type === 'medic' || other.type === 'goldmine' || other.type === 'dj') continue;
+                const bdx = other.x - t.x, bdy = other.y - t.y;
+                if (Math.sqrt(bdx * bdx + bdy * bdy) <= healRange) {
+                    // Small green cross floating
+                    const hTime = performance.now() / 800;
+                    ctx.fillStyle = '#4caf50';
+                    ctx.globalAlpha = 0.4 + Math.sin(hTime * 2 + other.x) * 0.2;
+                    ctx.fillRect(other.x - 1, other.y - 22 + Math.sin(hTime + other.x) * 2, 3, 1);
+                    ctx.fillRect(other.x, other.y - 23 + Math.sin(hTime + other.x) * 2, 1, 3);
+                    ctx.globalAlpha = 1;
+                }
+            }
         }
 
         // === DJ BOOST INDICATOR (music notes floating on boosted towers) ===
@@ -5007,6 +5756,51 @@ function renderProjectiles() {
             // Shotgun pellet
             ctx.fillStyle = '#d35400';
             ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+        } else if (p.towerType === 'ninja') {
+            // Spinning shuriken
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(performance.now() / 40);
+            ctx.fillStyle = p.isCrit ? '#ff4444' : '#aaa';
+            ctx.fillRect(-3, -1, 6, 2);
+            ctx.fillRect(-1, -3, 2, 6);
+            ctx.fillStyle = '#666';
+            ctx.fillRect(-1, -1, 2, 2);
+            ctx.restore();
+            // Crit glow
+            if (p.isCrit) {
+                ctx.fillStyle = '#ff4444';
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        } else if (p.towerType === 'necromancer') {
+            // Dark bolt
+            ctx.fillStyle = '#8e24aa';
+            ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+            ctx.fillStyle = '#ce93d8';
+            ctx.globalAlpha = 0.5;
+            ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+            ctx.globalAlpha = 1;
+        } else if (p.towerType === 'railgun') {
+            // Thick red beam/tracer
+            ctx.fillStyle = '#ff1744';
+            ctx.fillRect(p.x - 2, p.y - 2, 5, 5);
+            // Trailing beam
+            ctx.fillStyle = '#ff4444';
+            ctx.globalAlpha = 0.4;
+            const vLen = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            if (vLen > 0) {
+                const nx = -p.vx / vLen * 20, ny = -p.vy / vLen * 20;
+                ctx.fillRect(p.x + nx * 0.5 - 1, p.y + ny * 0.5 - 1, 3, 3);
+                ctx.fillRect(p.x + nx - 1, p.y + ny - 1, 2, 2);
+            }
+            ctx.globalAlpha = 1;
+            // Glow
+            ctx.fillStyle = '#ff1744';
+            ctx.globalAlpha = 0.2;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
         } else if (p.towerType === 'milbase') {
             // Mini shell
             ctx.fillStyle = '#ff8844';
