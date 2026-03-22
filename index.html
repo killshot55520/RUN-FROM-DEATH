@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Run From Death - Tower Defense</title>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" defer></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #0a0a1a; overflow: hidden; font-family: 'Courier New', monospace; display: flex; }
@@ -688,20 +688,12 @@ canvas { display: block; }
 
 <script>
 // ============================================================
-//  FIREBASE INIT
+//  FIREBASE (lazy init — loads in background, game works without it)
 // ============================================================
-const firebaseConfig = {
-    apiKey: "AIzaSyCTqn-kA6SWOdkTbdH7sdatIK9MVegkzZc",
-    authDomain: "run-from-death-79bae.firebaseapp.com",
-    projectId: "run-from-death-79bae",
-    storageBucket: "run-from-death-79bae.firebasestorage.app",
-    messagingSenderId: "341622472371",
-    appId: "1:341622472371:web:083ee9d1e815859697bac6",
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+let db = null;
+let auth = null;
 let firebaseUser = null;
+let firebaseReady = false;
 
 // Elf shooter sprite sheets
 const elfAttackImg = new Image();
@@ -713,18 +705,47 @@ const ELF_ATTACK_FRAMES = 8;
 const ELF_DEATH_FRAMES = 12;
 const ELF_SPRITE_SCALE = 0.3;
 
-// Try to enable offline persistence (fails silently if not supported)
-try { db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch(e) {}
+// Initialize Firebase once SDK loads (non-blocking)
+function initFirebase() {
+    if (firebaseReady || typeof firebase === 'undefined' || !firebase.app) return;
+    try {
+        firebase.initializeApp({
+            apiKey: "AIzaSyCTqn-kA6SWOdkTbdH7sdatIK9MVegkzZc",
+            authDomain: "run-from-death-79bae.firebaseapp.com",
+            projectId: "run-from-death-79bae",
+            storageBucket: "run-from-death-79bae.firebasestorage.app",
+            messagingSenderId: "341622472371",
+            appId: "1:341622472371:web:083ee9d1e815859697bac6",
+        });
+        db = firebase.firestore();
+        auth = firebase.auth();
+        firebaseReady = true;
+        try { db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch(e) {}
+        // Listen for auth state
+        auth.onAuthStateChanged(user => {
+            firebaseUser = user;
+            updateAuthUI();
+            if (user) loadFromCloud();
+        });
+        console.log('Firebase ready');
+    } catch(e) { console.error('Firebase init error:', e); }
+}
+// Try init now, and retry every 500ms until ready (SDK might still be loading)
+initFirebase();
+const _fbRetry = setInterval(() => { initFirebase(); if (firebaseReady) clearInterval(_fbRetry); }, 500);
 
 // ============================================================
 //  AUTH FUNCTIONS
 // ============================================================
 function signInWithGoogle() {
+    if (!firebaseReady) { showCloudStatus('Loading... try again'); return; }
     const provider = new firebase.auth.GoogleAuthProvider();
+    showCloudStatus('Opening Google sign-in...');
     auth.signInWithPopup(provider).catch(err => {
-        // If popup blocked, try redirect
         if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
             auth.signInWithRedirect(provider);
+        } else {
+            showCloudStatus('Sign-in failed: ' + err.message);
         }
         console.error('Auth error:', err);
     });
@@ -732,7 +753,9 @@ function signInWithGoogle() {
 window.signInWithGoogle = signInWithGoogle;
 
 function signOutUser() {
-    auth.signOut();
+    if (auth) auth.signOut();
+    firebaseUser = null;
+    updateAuthUI();
 }
 window.signOutUser = signOutUser;
 
@@ -753,7 +776,7 @@ function updateAuthUI() {
 
 function showCloudStatus(msg) {
     const el = document.getElementById('cloud-status');
-    if (el) { el.textContent = msg; setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000); }
+    if (el) { el.textContent = msg; setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000); }
 }
 
 // ============================================================
@@ -761,8 +784,7 @@ function showCloudStatus(msg) {
 // ============================================================
 let _cloudSaveTimer = null;
 function saveToCloud() {
-    if (!firebaseUser) return;
-    // Debounce — wait 1s before writing
+    if (!firebaseUser || !db) return;
     clearTimeout(_cloudSaveTimer);
     _cloudSaveTimer = setTimeout(() => {
         const saveData = localStorage.getItem('rfd_td_save');
@@ -781,14 +803,14 @@ function saveToCloud() {
 }
 
 function loadFromCloud() {
-    if (!firebaseUser) return Promise.resolve();
+    if (!firebaseUser || !db) return Promise.resolve();
+    showCloudStatus('☁ Loading your data...');
     return db.collection('players').doc(firebaseUser.uid).get().then(doc => {
         if (doc.exists) {
             const data = doc.data();
             coins = data.coins ?? coins;
             unlockedTowers = data.unlockedTowers ?? unlockedTowers;
             highScore = data.highScore ?? highScore;
-            // Sync to localStorage
             localStorage.setItem('rfd_td_coins', coins.toString());
             localStorage.setItem('rfd_td_unlocked', JSON.stringify(unlockedTowers));
             localStorage.setItem('rfd_td_highscore', highScore.toString());
@@ -799,11 +821,9 @@ function loadFromCloud() {
             }
             showCloudStatus('☁ Loaded from cloud');
         } else {
-            // First time sign-in — upload local data to cloud
             saveToCloud();
             showCloudStatus('☁ Synced to cloud');
         }
-        // Refresh menu
         updateMenuCoins();
         const hsEl = document.getElementById('menu-highscore');
         if (hsEl && highScore > 0) hsEl.textContent = `High Score: ${highScore}`;
@@ -815,15 +835,6 @@ function loadFromCloud() {
         showCloudStatus('☁ Load failed — using local data');
     });
 }
-
-// Auth state listener
-auth.onAuthStateChanged(user => {
-    firebaseUser = user;
-    updateAuthUI();
-    if (user) {
-        loadFromCloud();
-    }
-});
 
 // ============================================================
 //  CONFIG
