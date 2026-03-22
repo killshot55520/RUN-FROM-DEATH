@@ -508,6 +508,7 @@ canvas { display: block; }
         <div class="stat-row"><span>Lives:</span><span class="val lives" id="ui-lives">20</span></div>
         <div class="stat-row"><span>Wave:</span><span class="val" id="ui-wave">0 / ?</span></div>
         <div class="stat-row"><span>Score:</span><span class="val" id="ui-score">0</span></div>
+        <div class="stat-row"><span>Towers:</span><span class="val" id="ui-towers">0 / 40</span></div>
         <div class="stat-row" id="spawner-row"><span>Bases:</span><span class="val" id="ui-spawners">0 / 5</span></div>
     </div>
 
@@ -633,6 +634,31 @@ canvas { display: block; }
             <span class="tdesc">Generates $5/3s passively</span>
             <span class="tcost">$80</span>
         </button>
+        <button class="tower-btn" id="btn-drone" onclick="selectTower('drone')">
+            <span class="tname" style="color:#607d8b">Bomber Drone</span>
+            <span class="tdesc">Quadcopter, drops bombs</span>
+            <span class="tcost">$140</span>
+        </button>
+        <button class="tower-btn" id="btn-samurai" onclick="selectTower('samurai')">
+            <span class="tname" style="color:#b71c1c">Samurai</span>
+            <span class="tdesc">Melee slashes, fast attacks</span>
+            <span class="tcost">$120</span>
+        </button>
+        <button class="tower-btn" id="btn-icewall" onclick="selectTower('icewall')">
+            <span class="tname" style="color:#4fc3f7">Ice Wall</span>
+            <span class="tdesc">Slows all nearby enemies 40%</span>
+            <span class="tcost">$60</span>
+        </button>
+        <button class="tower-btn" id="btn-mortar" onclick="selectTower('mortar')">
+            <span class="tname" style="color:#8d6e63">Mortar</span>
+            <span class="tdesc">Long range, huge splash</span>
+            <span class="tcost">$160</span>
+        </button>
+        <button class="tower-btn" id="btn-hacker" onclick="selectTower('hacker')">
+            <span class="tname" style="color:#00e676">Hacker</span>
+            <span class="tdesc">Double kill rewards, hacks enemies</span>
+            <span class="tcost">$180</span>
+        </button>
 
         <div class="selected-tower-info" id="tower-info">
             <span class="st-name" id="ti-name"></span>
@@ -676,6 +702,16 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 let firebaseUser = null;
+
+// Elf shooter sprite sheets
+const elfAttackImg = new Image();
+elfAttackImg.src = 'assets/character_attack.png';
+const elfDeathImg = new Image();
+elfDeathImg.src = 'assets/character_death.png';
+const ELF_FRAME_W = 116, ELF_FRAME_H = 116;
+const ELF_ATTACK_FRAMES = 8;
+const ELF_DEATH_FRAMES = 12;
+const ELF_SPRITE_SCALE = 0.3;
 
 // Try to enable offline persistence (fails silently if not supported)
 try { db.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch(e) {}
@@ -995,6 +1031,41 @@ const TOWER_DEFS = {
         hat: '#8d6e00', outfit: '#a67c00',
         goldPerTick: 5,
     },
+    drone: {
+        name: 'Bomber Drone', cost: 140, color: '#607d8b', skinColor: '#f0c899',
+        range: 120, damage: 40, fireRate: 2.0,
+        splash: 35, slow: 0, upgradeCost: 90, upgradeScale: 1.5,
+        dmgUp: 1.3, rangeUp: 1.1, rateUp: 0.9,
+        hat: '#455a64', outfit: '#546e7a',
+    },
+    samurai: {
+        name: 'Samurai', cost: 120, color: '#b71c1c', skinColor: '#f0c899',
+        range: 50, damage: 20, fireRate: 0.3,
+        splash: 0, slow: 0, upgradeCost: 75, upgradeScale: 1.5,
+        dmgUp: 1.35, rangeUp: 1.08, rateUp: 0.85,
+        hat: '#4a0000', outfit: '#8b0000',
+    },
+    icewall: {
+        name: 'Ice Wall', cost: 60, color: '#4fc3f7', skinColor: '#f0c899',
+        range: 60, damage: 0, fireRate: 999,
+        splash: 0, slow: 0.4, slowDur: 2, upgradeCost: 40, upgradeScale: 1.5,
+        dmgUp: 1, rangeUp: 1.12, rateUp: 1,
+        hat: '#0288d1', outfit: '#29b6f6',
+    },
+    mortar: {
+        name: 'Mortar', cost: 160, color: '#8d6e63', skinColor: '#f0c899',
+        range: 200, damage: 60, fireRate: 3.0,
+        splash: 70, slow: 0, upgradeCost: 100, upgradeScale: 1.5,
+        dmgUp: 1.35, rangeUp: 1.1, rateUp: 0.9,
+        hat: '#4e342e', outfit: '#5d4037',
+    },
+    hacker: {
+        name: 'Hacker', cost: 180, color: '#00e676', skinColor: '#c8e6c9',
+        range: 130, damage: 10, fireRate: 1.5,
+        splash: 0, slow: 0.1, slowDur: 1.5, upgradeCost: 110, upgradeScale: 1.5,
+        dmgUp: 1.2, rangeUp: 1.1, rateUp: 0.9,
+        hat: '#1b5e20', outfit: '#212121',
+    },
 };
 
 // Skin tiers: colors change at level 1-2, 3-4, 5+
@@ -1120,6 +1191,31 @@ const SKIN_TIERS = {
         { outfit: '#c08900', hat: '#9e7700', accent: '#ffeb3b', glow: null, title: 'Gold Refinery' },
         { outfit: '#d4a000', hat: '#b8860b', accent: '#fff176', glow: '#ffd700', title: 'Treasure Vault' },
     ],
+    drone: [
+        { outfit: '#546e7a', hat: '#455a64', accent: '#90a4ae', glow: null, title: 'Scout Drone' },
+        { outfit: '#37474f', hat: '#263238', accent: '#f1c40f', glow: null, title: 'Strike Drone' },
+        { outfit: '#1a1a1a', hat: '#0a0a0a', accent: '#ff1744', glow: '#ff1744', title: 'Reaper Drone' },
+    ],
+    samurai: [
+        { outfit: '#8b0000', hat: '#4a0000', accent: '#c0c0c0', glow: null, title: 'Samurai' },
+        { outfit: '#333', hat: '#1a1a1a', accent: '#9b59b6', glow: null, title: 'Ronin' },
+        { outfit: '#b8860b', hat: '#8b6914', accent: '#ffd700', glow: '#ffd700', title: 'Shogun' },
+    ],
+    icewall: [
+        { outfit: '#29b6f6', hat: '#0288d1', accent: '#b3e5fc', glow: null, title: 'Ice Wall' },
+        { outfit: '#0277bd', hat: '#01579b', accent: '#4fc3f7', glow: null, title: 'Frozen Fortress' },
+        { outfit: '#e1f5fe', hat: '#0d47a1', accent: '#00e5ff', glow: '#00e5ff', title: 'Absolute Zero' },
+    ],
+    mortar: [
+        { outfit: '#5d4037', hat: '#4e342e', accent: '#8d6e63', glow: null, title: 'Mortar' },
+        { outfit: '#3e2723', hat: '#1b0e07', accent: '#f1c40f', glow: null, title: 'Howitzer' },
+        { outfit: '#1a1a1a', hat: '#111', accent: '#ff6600', glow: '#ff6600', title: 'Artillery Battery' },
+    ],
+    hacker: [
+        { outfit: '#212121', hat: '#1b5e20', accent: '#00e676', glow: null, title: 'Hacker' },
+        { outfit: '#1a1a2e', hat: '#0d47a1', accent: '#00bcd4', glow: null, title: 'Cyber Agent' },
+        { outfit: '#0a0a1a', hat: '#111', accent: '#76ff03', glow: '#76ff03', title: 'AI Overlord' },
+    ],
 };
 
 function getSkinTier(type, level) {
@@ -1158,6 +1254,11 @@ const SHOP_ITEMS = {
     railgun:    { price: 200, desc: 'Piercing massive damage' },
     tornado:    { price: 90,  desc: 'Pushes enemies back' },
     goldmine:   { price: 40,  desc: 'Generates money passively' },
+    drone:      { price: 100, desc: 'Quadcopter bomber' },
+    samurai:    { price: 75,  desc: 'Melee sword slashes' },
+    icewall:    { price: 30,  desc: 'Freezing aura, slows enemies' },
+    mortar:     { price: 120, desc: 'Huge splash, long range' },
+    hacker:     { price: 140, desc: 'Double kill rewards' },
 };
 
 const DIFFICULTIES = {
@@ -1401,11 +1502,15 @@ function canPlace(col, row) {
 
 const SPAWNER_LIMIT = 5; // max elf huts + mil bases in normal mode
 
+const MAX_TOWERS = 40;
+
 function placeTower(col, row) {
     if (!selectedTowerType) return;
     const def = TOWER_DEFS[selectedTowerType];
     if (money < def.cost) return;
     if (!canPlace(col, row)) return;
+    // Max tower limit
+    if (!ownerMode && towers.length >= MAX_TOWERS) return;
     // Limit spawner towers in normal mode
     if (!ownerMode && (selectedTowerType === 'elfhut' || selectedTowerType === 'milbase')) {
         const count = towers.filter(t => t.type === 'elfhut' || t.type === 'milbase').length;
@@ -1606,6 +1711,16 @@ function updateEnemies(dt) {
         if (!e.alive) continue;
         if (e.slowTimer > 0) { e.slowTimer -= dt; e.speed = e.baseSpeed * 0.4; }
         else { e.speed = e.baseSpeed; }
+        // Ice Wall aura: slow enemies passing through range
+        for (const t of towers) {
+            if (t.type !== 'icewall') continue;
+            const idx = e.x - t.x, idy = e.y - t.y;
+            if (Math.sqrt(idx * idx + idy * idy) <= t.range) {
+                e.slowTimer = Math.max(e.slowTimer, 0.1);
+                e.speed = e.baseSpeed * 0.6; // 40% slow (multiply by 0.6)
+                break;
+            }
+        }
 
         // Poison damage over time
         if (e.poisonTimer > 0) {
@@ -1660,7 +1775,7 @@ function updateEnemies(dt) {
 // ============================================================
 function updateTowers(dt) {
     for (const t of towers) {
-        if (t.type === 'elfhut' || t.type === 'milbase' || t.type === 'dj') continue;
+        if (t.type === 'elfhut' || t.type === 'milbase' || t.type === 'dj' || t.type === 'icewall') continue;
 
         // === GOLD MINE: passive income, no attacks ===
         if (t.type === 'goldmine') {
@@ -1761,13 +1876,52 @@ function updateTowers(dt) {
                         t.angle = Math.atan2(e.y - t.y, e.x - t.x);
                         if (e.hp <= 0 && e.alive) {
                             e.alive = false;
-                            score += e.reward; money += e.reward;
+                            let fReward = e.reward;
+                            if (checkHackerInRange(e)) fReward *= 2;
+                            score += fReward; money += fReward;
                             spawnParticles(e.x, e.y, e.color, 6, 100);
                             checkNecromancerRaise(e);
                         }
                     }
                 }
                 if (hitAny) t.shootAnim = 0.5;
+            }
+            continue;
+        }
+
+        // === SAMURAI: melee slash, direct damage to all in range ===
+        if (t.type === 'samurai') {
+            t.cooldown -= dt;
+            t.shootAnim = Math.max(0, t.shootAnim - dt * 6);
+            if (t.cooldown <= 0) {
+                t.cooldown = t.fireRate;
+                const boost = getBoostMultiplier(t);
+                let hitAny = false;
+                for (const e of enemies) {
+                    if (!e.alive) continue;
+                    const dx = e.x - t.x, dy = e.y - t.y;
+                    if (Math.sqrt(dx * dx + dy * dy) <= t.range) {
+                        e.hp -= t.damage * boost;
+                        hitAny = true;
+                        t.angle = Math.atan2(e.y - t.y, e.x - t.x);
+                        // Slash effect particles
+                        const slashAngle = Math.atan2(e.y - t.y, e.x - t.x);
+                        for (let s = 0; s < 3; s++) {
+                            const sa = slashAngle + (Math.random() - 0.5) * 1.2;
+                            const sd = 15 + Math.random() * 20;
+                            spawnParticles(t.x + Math.cos(sa) * sd, t.y + Math.sin(sa) * sd, '#c0c0c0', 1, 60);
+                        }
+                        if (e.hp <= 0 && e.alive) {
+                            e.alive = false;
+                            let sReward = e.reward;
+                            if (checkHackerInRange(e)) sReward *= 2;
+                            score += sReward; money += sReward;
+                            spawnParticles(e.x, e.y, e.color, 8, 120);
+                            checkNecromancerRaise(e);
+                        }
+                    }
+                }
+                if (hitAny) t.shootAnim = 1;
             }
             continue;
         }
@@ -1841,7 +1995,7 @@ function updateTowers(dt) {
 function shoot(tower, target) {
     const def = TOWER_DEFS[tower.type];
     const boost = getBoostMultiplier(tower);
-    const speed = tower.type === 'sniper' ? 500 : tower.type === 'rocketeer' ? 220 : tower.type === 'tank' ? 280 : tower.type === 'jet' ? 350 : tower.type === 'plane' ? 300 : tower.type === 'heli' ? 400 : tower.type === 'minigunner' ? 450 : tower.type === 'railgun' ? 600 : tower.type === 'ninja' ? 400 : 350;
+    const speed = tower.type === 'sniper' ? 500 : tower.type === 'rocketeer' ? 220 : tower.type === 'tank' ? 280 : tower.type === 'jet' ? 350 : tower.type === 'plane' ? 300 : tower.type === 'heli' ? 400 : tower.type === 'minigunner' ? 450 : tower.type === 'railgun' ? 600 : tower.type === 'ninja' ? 400 : tower.type === 'drone' ? 250 : tower.type === 'mortar' ? 200 : tower.type === 'hacker' ? 300 : 350;
 
     // === RAILGUN: piercing beam through ALL enemies in a line ===
     if (tower.type === 'railgun') {
@@ -1956,7 +2110,7 @@ function shoot(tower, target) {
         splash: tower.splash,
         slow: tower.slow, slowDur: tower.slowDur || 0,
         color: def.color,
-        size: tower.type === 'rocketeer' ? 5 : tower.type === 'tank' ? 5 : tower.type === 'jet' ? 4 : tower.type === 'plane' ? 4 : tower.type === 'heli' ? 3 : tower.type === 'minigunner' ? 2 : tower.type === 'poison' ? 3 : tower.type === 'ninja' ? 3 : tower.type === 'necromancer' ? 3 : 3,
+        size: tower.type === 'rocketeer' ? 5 : tower.type === 'tank' ? 5 : tower.type === 'jet' ? 4 : tower.type === 'plane' ? 4 : tower.type === 'heli' ? 3 : tower.type === 'minigunner' ? 2 : tower.type === 'poison' ? 3 : tower.type === 'ninja' ? 3 : tower.type === 'necromancer' ? 3 : tower.type === 'drone' ? 4 : tower.type === 'mortar' ? 5 : tower.type === 'hacker' ? 2 : 3,
         alive: true,
         towerType: tower.type,
         poisonDmg: def.poisonDmg || 0,
@@ -1968,7 +2122,7 @@ function shoot(tower, target) {
     spawnParticles(
         tower.x + Math.cos(tower.angle) * 16,
         tower.y + Math.sin(tower.angle) * 16,
-        tower.type === 'frost' ? '#88eedd' : tower.type === 'jet' ? '#f39c12' : tower.type === 'plane' ? '#ff8' : tower.type === 'tank' ? '#f1c40f' : tower.type === 'heli' ? '#ff8844' : tower.type === 'poison' ? '#76ff03' : tower.type === 'ninja' ? '#aaa' : tower.type === 'necromancer' ? '#ce93d8' : '#ff8',
+        tower.type === 'frost' ? '#88eedd' : tower.type === 'jet' ? '#f39c12' : tower.type === 'plane' ? '#ff8' : tower.type === 'tank' ? '#f1c40f' : tower.type === 'heli' ? '#ff8844' : tower.type === 'poison' ? '#76ff03' : tower.type === 'ninja' ? '#aaa' : tower.type === 'necromancer' ? '#ce93d8' : tower.type === 'drone' ? '#607d8b' : tower.type === 'mortar' ? '#ff8' : tower.type === 'hacker' ? '#00e676' : '#ff8',
         2, 40
     );
 }
@@ -2038,7 +2192,10 @@ function hitEnemy(enemy, proj) {
                 e.hp -= proj.damage * 0.5;
                 if (proj.slow > 0) e.slowTimer = proj.slowDur;
                 if (e.hp <= 0 && e.alive) {
-                    e.alive = false; score += e.reward; money += e.reward;
+                    e.alive = false;
+                    let splashReward = e.reward;
+                    if (checkHackerInRange(e)) splashReward *= 2;
+                    score += splashReward; money += splashReward;
                     spawnParticles(e.x, e.y, e.color, 10, 150);
                     checkNecromancerRaise(e);
                 }
@@ -2046,11 +2203,24 @@ function hitEnemy(enemy, proj) {
         }
     }
     if (enemy.hp <= 0 && enemy.alive) {
-        enemy.alive = false; score += enemy.reward; money += enemy.reward;
+        enemy.alive = false;
+        let reward = enemy.reward;
+        // Hacker: double reward if any hacker is in range
+        if (checkHackerInRange(enemy)) reward *= 2;
+        score += reward; money += reward;
         spawnParticles(enemy.x, enemy.y, enemy.color, 12, 150);
         // Necromancer: chance to raise ghost from dead enemy
         checkNecromancerRaise(enemy);
     }
+}
+
+function checkHackerInRange(enemy) {
+    for (const t of towers) {
+        if (t.type !== 'hacker') continue;
+        const dx = enemy.x - t.x, dy = enemy.y - t.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= t.range) return true;
+    }
+    return false;
 }
 
 function checkNecromancerRaise(deadEnemy) {
@@ -2369,6 +2539,8 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
     if (type === 'milbase') { drawMilBase(x, y, level, skin, glow, tier); return; }
     if (type === 'dj') { drawDJ(x, y, level, skin, glow, tier); return; }
     if (type === 'goldmine') { drawGoldMine(x, y, level, skin, glow, tier); return; }
+    if (type === 'drone') { drawDrone(x, y, angle, level, shootAnim, skin, glow, tier); return; }
+    if (type === 'icewall') { drawIceWall(x, y, level, skin, glow, tier); return; }
 
     ctx.save();
     ctx.translate(x, y);
@@ -2440,6 +2612,15 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
         ctx.fillRect(-5, 2, 4, 7); ctx.fillRect(1, 2, 4, 7);
         ctx.fillStyle = '#444';
         ctx.fillRect(-5, 5, 4, 2); ctx.fillRect(1, 5, 4, 2);
+    } else if (type === 'samurai') {
+        // Hakama (wide pants)
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, 0, 14, 9);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-7, 8, 14, 1);
+        // Hakama pleats
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(-3, 1, 1, 7); ctx.fillRect(2, 1, 1, 7);
     } else {
         ctx.fillStyle = tier >= 3 ? '#111' : tier >= 2 ? '#2a3a2a' : '#374a3a';
         ctx.fillRect(-5, 2, 4, 7); ctx.fillRect(1, 2, 4, 7);
@@ -2680,6 +2861,59 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
         ctx.fillStyle = acc;
         ctx.fillRect(-7, 8, 14, 1);
         if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.1; ctx.fillRect(-7, -8, 14, 16); ctx.globalAlpha = 1; }
+    } else if (type === 'samurai') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-8, -8, 16, 12);
+        // Samurai armor plates
+        ctx.fillStyle = tier >= 3 ? '#8b6914' : tier >= 2 ? '#222' : '#6b0000';
+        ctx.fillRect(-7, -6, 14, 8);
+        // Shoulder guards (sode)
+        ctx.fillStyle = tier >= 3 ? '#b8860b' : out;
+        ctx.fillRect(-10, -8, 4, 6); ctx.fillRect(6, -8, 4, 6);
+        ctx.fillStyle = acc;
+        ctx.fillRect(-10, -8, 4, 1); ctx.fillRect(6, -8, 4, 1);
+        // Chest emblem
+        ctx.fillStyle = acc;
+        ctx.fillRect(-2, -5, 4, 3);
+        if (tier >= 2) { ctx.fillStyle = acc; ctx.fillRect(-7, -3, 14, 1); }
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.15; ctx.fillRect(-7, -6, 14, 8); ctx.globalAlpha = 1; }
+    } else if (type === 'mortar') {
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -8, 14, 12);
+        // Military vest
+        ctx.fillStyle = tier >= 3 ? '#111' : '#3a2a1a';
+        ctx.fillRect(-6, -6, 12, 8);
+        // Ammo pouches
+        ctx.fillStyle = '#555';
+        ctx.fillRect(-6, 0, 3, 3); ctx.fillRect(-2, 0, 3, 3); ctx.fillRect(3, 0, 3, 3);
+        ctx.fillStyle = tier >= 2 ? acc : '#8B7355';
+        ctx.fillRect(-6, -7, 12, 1);
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.15; ctx.fillRect(-6, -6, 12, 8); ctx.globalAlpha = 1; }
+    } else if (type === 'hacker') {
+        // Hoodie
+        ctx.fillStyle = out;
+        ctx.fillRect(-8, -10, 16, 14);
+        ctx.fillStyle = tier >= 3 ? '#0a0a1a' : '#1a1a1a';
+        ctx.fillRect(-7, -6, 14, 8);
+        // Laptop on front
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-4, -3, 8, 5);
+        ctx.fillStyle = tier >= 3 ? glow || '#76ff03' : '#00e676';
+        ctx.globalAlpha = 0.6 + Math.sin(performance.now() / 200) * 0.3;
+        ctx.fillRect(-3, -2, 6, 3); // screen glow
+        ctx.globalAlpha = 1;
+        // Matrix-style digital code floating
+        ctx.fillStyle = acc;
+        ctx.globalAlpha = 0.3;
+        const codeT = performance.now() / 400;
+        for (let c = 0; c < 4; c++) {
+            const cx2 = -12 + c * 7 + Math.sin(codeT + c) * 2;
+            const cy2 = -8 + Math.cos(codeT * 1.3 + c * 2) * 4;
+            ctx.fillRect(cx2, cy2, 2, 1);
+            ctx.fillRect(cx2 + 1, cy2 + 2, 1, 1);
+        }
+        ctx.globalAlpha = 1;
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.1; ctx.fillRect(-7, -8, 14, 12); ctx.globalAlpha = 1; }
     } else {
         // Gunner
         ctx.fillStyle = out;
@@ -3031,6 +3265,84 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
         ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(9.5, -5, 3, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = 1;
+    } else if (type === 'samurai') {
+        // Katana
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 4, 3);
+        // Sword handle (tsuka)
+        ctx.fillStyle = '#3a2a1a';
+        ctx.fillRect(8 - recoil, -2, 6, 3);
+        // Tsuba (guard)
+        ctx.fillStyle = tier >= 3 ? '#ffd700' : '#888';
+        ctx.fillRect(13 - recoil, -4, 2, 6);
+        // Blade
+        ctx.fillStyle = tier >= 3 ? '#fff' : '#c0c0c0';
+        ctx.fillRect(14 - recoil, -2, 18, 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillRect(14 - recoil, -2, 18, 1); // blade highlight
+        // Blade tip
+        ctx.fillRect(31 - recoil, -1, 3, 1);
+        // Glow on blade for tier 3
+        if (tier >= 3 && glow) {
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.3;
+            ctx.fillRect(14 - recoil, -2, 18, 2);
+            ctx.globalAlpha = 1;
+        }
+        // Slash arc effect when attacking
+        if (shootAnim > 0.3) {
+            ctx.strokeStyle = tier >= 3 ? glow || '#ffd700' : '#c0c0c0';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = shootAnim * 0.6;
+            ctx.beginPath();
+            ctx.arc(14, 0, 18, -0.8, 0.8);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+    } else if (type === 'mortar') {
+        // Mortar tube weapon
+        ctx.fillStyle = sk; ctx.fillRect(5, -3, 5, 5);
+        // Mortar base plate
+        ctx.fillStyle = '#444';
+        ctx.fillRect(4, 4, 10, 3);
+        // Mortar tube (angled up)
+        ctx.fillStyle = metalLo;
+        ctx.fillRect(6 - recoil, -8, 6, 14);
+        ctx.fillStyle = metalHi;
+        ctx.fillRect(7 - recoil, -8, 4, 14);
+        // Muzzle
+        ctx.fillStyle = '#333';
+        ctx.fillRect(5 - recoil, -10, 8, 3);
+        // Shell flash
+        if (shootAnim > 0.5) {
+            ctx.fillStyle = '#ff8';
+            ctx.globalAlpha = shootAnim - 0.3;
+            ctx.fillRect(5 - recoil, -14, 8, 5);
+            ctx.globalAlpha = 1;
+        }
+        if (tier >= 2) {
+            ctx.fillStyle = acc;
+            ctx.fillRect(5, -8, 1, 12);
+        }
+    } else if (type === 'hacker') {
+        // Arm with pointing gesture + digital weapon
+        ctx.fillStyle = sk; ctx.fillRect(5, -2, 5, 4);
+        // Wrist device / cyber gauntlet
+        ctx.fillStyle = '#333';
+        ctx.fillRect(8, -3, 6, 5);
+        // Holographic display
+        ctx.fillStyle = tier >= 3 ? glow || '#76ff03' : '#00e676';
+        ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 150) * 0.3;
+        ctx.fillRect(13, -5, 8, 3);
+        ctx.fillRect(14, -2, 6, 2);
+        ctx.globalAlpha = 1;
+        // Digital bolt trail
+        if (shootAnim > 0.3) {
+            ctx.fillStyle = '#00e676';
+            ctx.globalAlpha = shootAnim * 0.7;
+            for (let d = 0; d < 4; d++) {
+                ctx.fillRect(15 + d * 4, -2 + Math.sin(performance.now() / 80 + d) * 2, 2, 1);
+            }
+            ctx.globalAlpha = 1;
+        }
     }
     ctx.restore();
 
@@ -3359,6 +3671,77 @@ function drawPerson(x, y, angle, type, level, shootAnim) {
         if (tier >= 3) { ctx.fillRect(-3, -30, 2, 2); ctx.fillRect(0, -34, 2, 2); }
         ctx.globalAlpha = 1;
         ctx.fillStyle = acc; ctx.fillRect(-6, -24, 12, 1);
+    } else if (type === 'samurai') {
+        // Kabuto (samurai helmet)
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-7, -22, 14, 5);
+        ctx.fillRect(-8, -20, 16, 4);
+        // Helmet crest (maedate)
+        ctx.fillStyle = tier >= 3 ? '#ffd700' : acc;
+        ctx.fillRect(-2, -28, 4, 7);
+        ctx.fillRect(-4, -26, 8, 2);
+        // Helmet wings (fukikaeshi)
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-10, -19, 4, 5);
+        ctx.fillRect(6, -19, 4, 5);
+        // Face guard (menpo)
+        ctx.fillStyle = tier >= 3 ? '#8b6914' : '#444';
+        ctx.fillRect(-5, -14, 10, 4);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(-3, -13, 6, 2);
+        if (tier >= 3 && glow) {
+            ctx.fillStyle = glow; ctx.globalAlpha = 0.3;
+            ctx.fillRect(-7, -22, 14, 5); ctx.globalAlpha = 1;
+        }
+        // Topknot hair
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(-1, -30, 2, 3);
+        ctx.fillRect(-2, -28, 4, 2);
+    } else if (type === 'mortar') {
+        // Military helmet with ear protection
+        ctx.fillStyle = hatC;
+        ctx.fillRect(-7, -22, 14, 5);
+        ctx.fillRect(-8, -20, 16, 4);
+        // Ear protectors
+        ctx.fillStyle = tier >= 3 ? '#111' : '#3a3a3a';
+        ctx.fillRect(-9, -17, 3, 5);
+        ctx.fillRect(6, -17, 3, 5);
+        // Visor/goggles on helmet
+        ctx.fillStyle = '#555';
+        ctx.fillRect(-5, -23, 10, 2);
+        if (tier >= 2) { ctx.fillStyle = acc; ctx.fillRect(-6, -20, 12, 1); }
+        if (tier >= 3 && glow) { ctx.fillStyle = glow; ctx.globalAlpha = 0.2; ctx.fillRect(-7, -22, 14, 5); ctx.globalAlpha = 1; }
+    } else if (type === 'hacker') {
+        // Hoodie pulled up
+        ctx.fillStyle = out;
+        ctx.fillRect(-7, -23, 14, 6);
+        ctx.fillRect(-8, -20, 16, 4);
+        // Hood peak
+        ctx.fillRect(-6, -25, 12, 3);
+        // Shadow on face (mysterious)
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(-5, -18, 10, 6);
+        // Glowing eyes (digital)
+        ctx.fillStyle = tier >= 3 ? glow || '#76ff03' : '#00e676';
+        ctx.globalAlpha = 0.7 + Math.sin(performance.now() / 150) * 0.3;
+        ctx.fillRect(-3, -16, 2, 2); ctx.fillRect(1, -16, 2, 2);
+        ctx.globalAlpha = 1;
+        if (tier >= 2) {
+            // AR glasses
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-5, -17, 10, 2);
+            ctx.fillStyle = acc;
+            ctx.globalAlpha = 0.5;
+            ctx.fillRect(-4, -17, 3, 2); ctx.fillRect(1, -17, 3, 2);
+            ctx.globalAlpha = 1;
+        }
+        if (tier >= 3) {
+            // Holographic HUD around head
+            ctx.fillStyle = glow;
+            ctx.globalAlpha = 0.15;
+            ctx.beginPath(); ctx.arc(0, -16, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+        }
     }
 
     // === LEVEL RANK INDICATOR ===
@@ -4591,6 +4974,242 @@ function drawGoldMine(x, y, level, skin, glow, tier) {
     ctx.restore();
 }
 
+// === BOMBER DRONE (quadcopter vehicle) ===
+function drawDrone(x, y, angle, level, shootAnim, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#546e7a';
+    const hatC = skin ? skin.hat : '#455a64';
+    const acc = skin ? skin.accent : '#90a4ae';
+
+    // Shadow on ground
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(1, 14, 12, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glow aura
+    if (glow) {
+        const glowSize = 20 + Math.sin(performance.now() / 300) * 3;
+        const grad = ctx.createRadialGradient(0, -6, 0, 0, -6, glowSize);
+        grad.addColorStop(0, glow + '30');
+        grad.addColorStop(1, glow + '00');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(0, -6, glowSize, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Hover bob
+    const bob = Math.sin(performance.now() / 300) * 2.5;
+    const tilt = Math.sin(performance.now() / 500) * 0.08;
+    ctx.save();
+    ctx.translate(0, -8 + bob);
+    ctx.rotate(tilt);
+
+    // Main body (quadcopter frame)
+    ctx.fillStyle = out;
+    ctx.fillRect(-6, -3, 12, 6); // center body
+    ctx.fillStyle = hatC;
+    ctx.fillRect(-5, -2, 10, 4);
+
+    // Camera/sensor underneath
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-2, 3, 4, 3);
+    ctx.fillStyle = tier >= 3 ? glow || '#ff1744' : '#f44336';
+    ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 200) * 0.3;
+    ctx.fillRect(-1, 4, 2, 1); // sensor light
+    ctx.globalAlpha = 1;
+
+    // Arms extending to rotors
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-14, -1, 10, 2); // left arm
+    ctx.fillRect(4, -1, 10, 2);   // right arm
+    ctx.fillRect(-1, -10, 2, 8);  // front arm
+    ctx.fillRect(-1, 2, 2, 8);    // back arm
+
+    // 4 Rotors (spinning)
+    const rotorSpin = performance.now() / 40;
+    const rotorPositions = [[-12, 0], [12, 0], [0, -8], [0, 8]];
+    for (const [rx, ry] of rotorPositions) {
+        ctx.save();
+        ctx.translate(rx, ry);
+        ctx.rotate(rotorSpin);
+        ctx.fillStyle = '#888';
+        ctx.globalAlpha = 0.6;
+        ctx.fillRect(-8, -1, 16, 2);
+        ctx.fillRect(-1, -8, 2, 16);
+        ctx.globalAlpha = 1;
+        // Rotor hub
+        ctx.fillStyle = acc;
+        ctx.fillRect(-2, -2, 4, 4);
+        ctx.restore();
+    }
+
+    // Bomb bay (when shooting)
+    if (shootAnim > 0.3) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-3, 5, 6, 3);
+        ctx.fillStyle = '#c0392b';
+        ctx.globalAlpha = shootAnim;
+        ctx.fillRect(-2, 7, 4, 2);
+        ctx.globalAlpha = 1;
+    }
+
+    // LED lights
+    ctx.fillStyle = tier >= 3 ? glow || '#ff0000' : '#0f0';
+    ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 400) * 0.5;
+    ctx.fillRect(-7, -3, 2, 1);
+    ctx.fillRect(5, -3, 2, 1);
+    ctx.globalAlpha = 1;
+
+    // Tier decorations
+    if (tier >= 2) {
+        ctx.fillStyle = acc;
+        ctx.fillRect(-5, -3, 10, 1);
+    }
+    if (tier >= 3) {
+        // Stealth panels
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(-4, -2, 8, 3);
+        // Red accent lines
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(-5, -1, 10, 1);
+        ctx.globalAlpha = 1;
+    }
+
+    ctx.restore(); // undo hover bob
+
+    // Level indicator
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 16, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 17, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
+// === ICE WALL (building - freezing aura) ===
+function drawIceWall(x, y, level, skin, glow, tier) {
+    ctx.save();
+    ctx.translate(x, y);
+    const out = skin ? skin.outfit : '#29b6f6';
+    const acc = skin ? skin.accent : '#b3e5fc';
+
+    // Freezing aura circle
+    const auraSize = 60 * Math.pow(1.12, level - 1);
+    ctx.fillStyle = glow ? glow + '10' : 'rgba(79,195,247,0.06)';
+    ctx.beginPath(); ctx.arc(0, 0, auraSize, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = glow ? glow + '30' : 'rgba(79,195,247,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, auraSize, 0, Math.PI * 2); ctx.stroke();
+
+    // Glow
+    if (glow) {
+        const glowSize = 24 + Math.sin(performance.now() / 300) * 3;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
+        grad.addColorStop(0, glow + '40');
+        grad.addColorStop(1, glow + '00');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(0, 0, glowSize, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(0, 14, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Ice crystal base
+    ctx.fillStyle = tier >= 3 ? '#e1f5fe' : out;
+    ctx.fillRect(-6, 2, 12, 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(-5, 3, 4, 8);
+
+    // Main ice pillar/crystal
+    ctx.fillStyle = out;
+    ctx.fillRect(-4, -8, 8, 18);
+    // Crystal facets
+    ctx.fillStyle = acc;
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(-3, -6, 3, 14);
+    ctx.globalAlpha = 1;
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(-2, -6, 2, 12);
+
+    // Crystal top (pointed)
+    ctx.fillStyle = out;
+    ctx.fillRect(-3, -12, 6, 5);
+    ctx.fillRect(-2, -15, 4, 4);
+    ctx.fillRect(-1, -17, 2, 3);
+    // Top sparkle
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 200) * 0.4;
+    ctx.fillRect(0, -17, 1, 1);
+    ctx.globalAlpha = 1;
+
+    // Side crystals
+    if (tier >= 2) {
+        ctx.fillStyle = acc;
+        ctx.fillRect(-8, -2, 4, 8);
+        ctx.fillRect(-7, -5, 3, 4);
+        ctx.fillRect(4, -3, 4, 9);
+        ctx.fillRect(5, -6, 3, 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(-7, -2, 2, 6);
+        ctx.fillRect(5, -3, 2, 7);
+    }
+    if (tier >= 3) {
+        // Larger crystal formation
+        ctx.fillStyle = '#e1f5fe';
+        ctx.fillRect(-10, 0, 3, 6);
+        ctx.fillRect(7, -1, 3, 7);
+        ctx.fillRect(-2, -20, 4, 4);
+        ctx.fillRect(-1, -22, 2, 3);
+        // Blizzard particles
+        const blizT = performance.now() / 200;
+        ctx.fillStyle = '#fff';
+        ctx.globalAlpha = 0.4;
+        for (let p = 0; p < 6; p++) {
+            const pa = blizT + p * (Math.PI * 2 / 6);
+            const pr = 16 + Math.sin(blizT * 2 + p) * 4;
+            ctx.fillRect(Math.cos(pa) * pr - 1, Math.sin(pa) * pr - 1, 2, 2);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Frost particles floating up
+    const frostT = performance.now() / 600;
+    ctx.fillStyle = acc;
+    ctx.globalAlpha = 0.3;
+    for (let f = 0; f < 3; f++) {
+        const fx = -6 + f * 5 + Math.sin(frostT + f * 2) * 3;
+        const fy = -10 - (performance.now() / 800 + f * 30) % 20;
+        ctx.fillRect(fx, fy, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // Blue glow emanating from base
+    ctx.fillStyle = out;
+    ctx.globalAlpha = 0.1 + Math.sin(performance.now() / 400) * 0.05;
+    ctx.beginPath(); ctx.arc(0, 4, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Level indicator
+    if (level > 1) {
+        ctx.fillStyle = glow || acc;
+        const chevs = Math.min(level - 1, 5);
+        for (let i = 0; i < chevs; i++) {
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 2, 16, 3, 1);
+            ctx.fillRect(-3 - chevs * 2 + i * 4 + 1, 17, 2, 1);
+        }
+    }
+
+    ctx.restore();
+}
+
 //  ELF & VEHICLE SYSTEM (spawned by elf huts and military bases)
 // ============================================================
 function updateElves(dt) {
@@ -4629,6 +5248,7 @@ function updateElves(dt) {
                         shootRate: role === 'mage' ? 0.8 : 0.6,
                         shootDmg: role === 'mage' ? t.damage * boost * 0.8 : t.damage * boost * 0.5,
                         crouching: false, retreating: false, targetAngle: 0,
+                        spriteFrame: 0, spriteTimer: 0,
                     });
                 }
             } else if (t.type === 'milbase') {
@@ -4665,6 +5285,15 @@ function updateElves(dt) {
         if (waveOver) {
             elf.crouching = false;
             elf.retreating = true;
+        }
+
+        // Tick sprite animation
+        if (elf.spriteTimer !== undefined) {
+            elf.spriteTimer += dt;
+            if (elf.spriteTimer >= 0.1) {
+                elf.spriteTimer = 0;
+                elf.spriteFrame = (elf.spriteFrame + 1) % ELF_ATTACK_FRAMES;
+            }
         }
 
         // Check if ranged unit should stop and shoot
@@ -4857,7 +5486,44 @@ function renderElves() {
             continue;
         }
 
-        // === ELVES ===
+        // === SPRITE-BASED ELVES (archer/mage use sprite sheet) ===
+        if (elf.unitType === 'elf' && (elf.role === 'archer' || elf.role === 'mage') && elfAttackImg.complete) {
+            const spriteW = ELF_FRAME_W * ELF_SPRITE_SCALE;
+            const spriteH = ELF_FRAME_H * ELF_SPRITE_SCALE;
+            const frame = elf.spriteFrame || 0;
+            const flip = Math.cos(facing) < 0;
+
+            ctx.save();
+            ctx.translate(ex, ey - spriteH * 0.3);
+            if (flip) ctx.scale(-1, 1);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.beginPath(); ctx.ellipse(0, spriteH * 0.45, spriteW * 0.35, 3, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Retreating transparency
+            if (elf.retreating) ctx.globalAlpha = 0.5;
+
+            // Draw sprite frame
+            ctx.drawImage(elfAttackImg,
+                frame * ELF_FRAME_W, 0, ELF_FRAME_W, ELF_FRAME_H,
+                -spriteW / 2, -spriteH / 2, spriteW, spriteH
+            );
+
+            // Tier 3 glow
+            if (tier >= 3) {
+                const glowC = elf.role === 'mage' ? '#aa44ff' : '#88ff44';
+                ctx.fillStyle = glowC;
+                ctx.globalAlpha = 0.12 + Math.sin(performance.now() / 200) * 0.06;
+                ctx.fillRect(-spriteW / 2 - 2, -spriteH / 2 - 2, spriteW + 4, spriteH + 4);
+                ctx.globalAlpha = 1;
+            }
+
+            ctx.restore();
+            continue;
+        }
+
+        // === PIXEL-ART ELVES (sword elves and fallback) ===
         const isCrouch = elf.crouching;
         const isRetreat = elf.retreating;
         // Face toward target when crouching, toward path when moving
@@ -5987,6 +6653,16 @@ function updateUI() {
     document.getElementById('ui-lives').textContent = lives;
     document.getElementById('ui-wave').textContent = `${wave} / ${totalWaves}`;
     document.getElementById('ui-score').textContent = score;
+    const towerCount = towers.length;
+    const towersFull = !ownerMode && towerCount >= MAX_TOWERS;
+    const towersEl = document.getElementById('ui-towers');
+    if (ownerMode) {
+        towersEl.parentElement.style.display = 'none';
+    } else {
+        towersEl.parentElement.style.display = '';
+        towersEl.textContent = `${towerCount} / ${MAX_TOWERS}`;
+        towersEl.style.color = towersFull ? '#e74c3c' : '#2ecc71';
+    }
     const spawnerCount = towers.filter(t => t.type === 'elfhut' || t.type === 'milbase').length;
     const spawnerFull = !ownerMode && spawnerCount >= SPAWNER_LIMIT;
     const spawnerRow = document.getElementById('spawner-row');
@@ -6001,6 +6677,8 @@ function updateUI() {
         const el = document.getElementById('btn-' + key);
         if (!el) continue;
         if (!ownerMode && !unlockedTowers.includes(key)) {
+            el.disabled = true;
+        } else if (towersFull) {
             el.disabled = true;
         } else if (spawnerFull && (key === 'elfhut' || key === 'milbase')) {
             el.disabled = true;
